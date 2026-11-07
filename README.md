@@ -1,150 +1,126 @@
-# Dogfight — Lab 01: The Event Loop Is the Game Loop
+# findex
 
-A spaceship you fly on a canvas at 60 simulation steps per second on any monitor, rendered with
-interpolation. Vanilla JavaScript (ES modules) + Vite. This is step 1 of the multiplayer arena
-game built across the course.
+A full-text search engine built step by step in a Python course (8 labs, one language feature
+and one project step per lab). **Lab 1 — Streams, Not Lists:** stream a text corpus into
+tokens and term statistics in constant memory, using the iteration protocol and generators.
 
-## Run
+## Quick start
 
 ```bash
-nvm use            # Node 22 (see .nvmrc)
-npm install
-npm run dev        # open the printed URL
-npm run lint       # ESLint (flat config) + eslint-config-prettier
-npm run format     # Prettier
-npm run determinism  # headless version of experiment 3 (Node, no browser)
+uv sync                                   # create the environment, install dev tools
+uv run pytest                             # run the tests
+uv run ruff check .                       # lint
+
+# get a corpus (see below), then:
+uv run python -m findex.stats data/ --limit 100     # statistics for the first 100 documents
+uv run python -m findex.stats data/                 # the whole corpus
+uv run python -m findex.bench data/                 # eager vs lazy comparison table
 ```
 
-Controls: **← → / A D** rotate, **↑ / W** thrust, **R** reset. The HUD (top-left) shows
-steps/s, frames/s, frame time (mean, σ, max) and CPU work per frame.
+## Corpus
 
-## Structure
+The corpus lives in `data/`, which is **not committed** (it is in `.gitignore`).
 
-```
-index.html            <canvas> + <script type="module">
-src/main.js           wires everything; reads experiment switches from the URL
-src/loop.js           createLoop({ step, simulate, render }) — rAF + clamped accumulator
-src/input.js          createInput(target) — closure over key state (isDown / justPressed)
-src/sim/ship.js       createShip(), integrate(ship, input, dt) — pure, no DOM
-src/sim/arena.js      arena size, wrap-around, shortest-path helpers
-src/render/canvas.js  DPR-aware canvas setup + resize
-src/render/draw.js    arena/starfield, ship (translate/rotate), HUD
-src/render/interpolate.js  wrap-aware position lerp + shortest-angle lerp
-scripts/determinism.mjs    experiment 3 without a browser
+**Source:** plain-text books from [Project Gutenberg](https://www.gutenberg.org/). Download them with:
+
+```bash
+uv run python scripts/download_gutenberg.py --count 100     # data/gutenberg/pg1.txt, pg2.txt, ...
 ```
 
-## Design notes
+Any directory of `.txt` files (searched recursively) or a `.jsonl` file (one JSON object with a
+`"text"` field per line) works. For offline testing there is also a generator of a synthetic
+Zipf-like corpus:
 
-- **Fixed timestep.** `simulate(1/60)` is called zero or more times per rendered frame from an
-  accumulator; the frame delta is clamped to 0.25 s so a hitch can't cause a spiral of death.
-  The renderer receives `alpha = accumulator / step` and blends `previous` → `current`.
-- **`integrate(ship, input, dt)` is pure.** It returns a new ship, touches no DOM/canvas/globals,
-  and only needs `input.isDown(code)`, so it runs unchanged in Node (see `scripts/determinism.mjs`).
-- **Closures, not classes.** `createInput` and `createLoop` keep their state in private variables;
-  the returned object is the only API.
-- **`justPressed` is cleared per _simulation step_, not per frame** (`endStep()` after each
-  `simulate`). A frame can contain 0, 1 or several steps; clearing per frame would lose or
-  duplicate presses.
-- **Interpolation corner cases.** Position is lerped along the shortest _wrapped_ path (otherwise
-  the ship streaks across the arena for one frame when it crosses an edge), and the heading is
-  lerped with the shortest signed angle (otherwise 359° → 1° spins the long way round). The ship
-  is also drawn as a ghost on the opposite edge so it slides through the border.
-- **DPR.** Backing store = CSS size × `devicePixelRatio`; the transform is re-applied every frame
-  (`setTransform`), and the logical 1280×720 arena is letterboxed into the window.
+```bash
+uv run python scripts/make_demo_corpus.py data/demo --docs 300 --words 20000
+```
 
-## Tuning notes
+## Design
 
-<!-- TODO (required by the lab): write down what YOU changed while tuning and why.
-     Starting values are in TUNING in src/sim/ship.js: turnRate 3.6, thrustAccel 340,
-     drag 0.9, maxSpeed 460. Example of the format:
-     - drag 0.5 -> 0.9: ship felt like it was on ice, hard to stop; now it settles in ~2 s. -->
+```
+src/findex/
+  corpus.py     iter_documents(root) -> Iterator[Document]   (generator, one document at a time)
+  tokenize.py   tokenize(text)       -> Iterator[str]        (generator, re.finditer)
+  stats.py      compute_stats(...)   one-pass pipeline, `python -m findex.stats`
+  eager.py      the deliberately greedy version (for the measurement only)
+  bench.py      eager-vs-lazy comparison, prints the table below
+tests/          pytest tests for the tokenizer, corpus reader and stats
+scripts/        corpus download / generation helpers
+```
 
-## Experiments
+The pipeline is a chain of generators:
 
-Open the game with the URL parameter shown for each experiment (`http://localhost:5173/?exp=…`).
-Machine used: <!-- TODO: CPU, browser + version, display refresh rate, OS -->
+```
+iter_documents  ->  tokenize  ->  Counter
+(one file)         (one token)    (the only structure that grows: the term table)
+```
 
-### Experiment 1 — blocking the frame (`?exp=block`)
+`iter_documents` opens one file, yields it, and moves on; `Path.rglob` is lazy as well.
+Files that are not valid UTF-8 are logged and re-read with `errors="replace"` instead of crashing.
+`--limit N` is implemented with `itertools.islice`.
 
-`render` busy-waits 100 ms every 60th frame (`while (performance.now() < t + 100) {}`).
+### Tokenizer rules
 
-| Metric (HUD)                  | Normal | `?exp=block` |
-| ----------------------------- | ------ | ------------ |
-| frames/s                      | TODO   | TODO         |
-| steps/s                       | TODO   | TODO         |
-| frame time mean / σ / max, ms | TODO   | TODO         |
-| work/frame, ms                | TODO   | TODO         |
+Every text goes through: NFC normalization → `casefold()` → `re.finditer`.
 
-What the player sees: <!-- TODO: e.g. a visible hitch once per second; screenshot of the HUD -->
+| Case | Rule | Example |
+| --- | --- | --- |
+| Letters | Any Unicode letter/digit (`\w` without `_`); Cyrillic works | `Привіт` → `привіт` |
+| Case | `casefold()`, not `lower()` | `Straße`, `STRASSE` → `strasse` |
+| Unicode forms | NFC, so `e` + combining accent equals `é` | `café` → `café` |
+| Combining marks | Kept inside the word, even when no precomposed form exists | `сло́во` is one token |
+| Apostrophes | Kept inside a word, `’` and `ʼ` unified to `'`; edge quotes dropped | `don’t` → `don't`, `п'ять` → `п'ять` |
+| Hyphens | Split the word | `well-known` → `well`, `known` |
+| Digits | Are tokens, may be glued to letters; `.`/`,` inside numbers split them | `mp3`, `42`, `3.14` → `3`, `14` |
+| Underscore | Separator | `a_b` → `a`, `b` |
 
-**Why it can't be worked around.** JavaScript on the page runs on one thread and every callback
-runs to completion. While the busy-wait is on the call stack, the event loop cannot take the next
-task, the microtask queue is not drained, and the browser cannot run its rendering step (rAF
-callbacks → style → layout → paint), so nothing is painted and no input is processed. Timers,
-promises, `requestAnimationFrame`, `await` — all of them are _queues the loop reads after the stack
-is empty_, so none of them can interrupt the running function. The only options are to make the
-work shorter, split it across frames, or move it to another thread (Web Worker — Lab 7).
-The accumulator then sees one frame of ≈100 ms and compensates by running ≈6 simulation steps in
-the next frame: the game state stays correct, but the player still perceives the freeze.
+## Measurements: eager vs lazy
 
-### Experiment 2 — `setInterval(frame, 16)` instead of rAF (`?exp=interval`)
+Both versions compute identical results (the benchmark asserts this). Peak memory is measured with
+`tracemalloc`; elapsed time is measured in a separate run *without* `tracemalloc`, because
+`tracemalloc` slows Python down several times over.
 
-Record 10 s in the foreground, then 5 s in a background tab and back.
+**Corpus for this table:** Project Gutenberg books with IDs 1-100 (98 of them were available):
+98 documents, 10,129,416 tokens, 361,381 distinct terms. Python 3.13.16 on Windows (AMD64).
 
-| Metric                        | rAF (normal) | `setInterval(16)` |
-| ----------------------------- | ------------ | ----------------- |
-| frames/s (foreground)         | TODO         | TODO              |
-| frame time mean / σ / max, ms | TODO         | TODO              |
-| after 5 s in background tab   | TODO         | TODO              |
+| Version           | Documents | Peak memory | Elapsed |
+| ----------------- | --------- | ----------- | ------- |
+| eager (lists)     | 98        | 634.9 MiB   | 15.41 s |
+| lazy (generators) | 98        | 83.1 MiB    | 15.92 s |
 
-What differed: <!-- TODO. Expected explanation below. -->
+The eager version needs about **7.6x more memory** for the same answer; the speed is about the same.
 
-Explanation: `setInterval` is a **task** scheduled by a timer. 16 ms ≠ 16.667 ms, so it drifts
-against the display refresh; the callback can fire right after a paint or right before one, so some
-frames are shown twice and others skipped (higher σ, visible judder). A timer task also is not
-tied to the rendering step: the browser decides separately when to paint. Background tabs throttle
-timers (≈1 Hz) but may still run them, while rAF is paused entirely. The accumulator's
-0.25 s clamp is what keeps the game sane when the tab comes back.
-`requestAnimationFrame` runs _right before the next paint_, receives the frame timestamp, follows
-the actual refresh rate (60/120/144 Hz) and stops when the page is hidden.
+### Where did the memory go?
 
-### Experiment 3 — variable timestep (`?exp=variable&autopilot=1`)
+The eager version keeps everything alive at once. It first holds the full text of all 98 books in
+one list, then tokenizes every book into its own list, so each of the 10 million tokens is a
+separate `str` object (roughly 45-70 bytes each, even for a short word, plus 8 bytes for its slot
+in the list; identical words are *not* shared). Most of the 635 MiB is these token objects, and
+they all exist at the same moment, right before counting starts. Only after that does a `Counter`
+shrink them to 361 thousand distinct terms: the answer that was needed in the end is tiny, but
+the intermediate lists were huge.
 
-`simulate(dt)` once per frame with the real elapsed time. With `&autopilot=1` the ship holds
-thrust and the console logs its position after 5 s of simulated time. Compare in Chrome DevTools
-→ Performance → CPU: **No throttling** vs **6× slowdown**; repeat with plain `?autopilot=1`
-(fixed step).
+The lazy version never holds more than one book plus the `Counter`. Each book and each token
+becomes garbage as soon as it is counted, so memory does not depend on the number of books (only
+on the largest book and on the size of the vocabulary). It is not zero for two reasons: the
+`Counter` legitimately grows with the vocabulary, and one whole book must be in memory while it is
+processed. The second part is bigger than the file size suggests. The peak was identical
+(83.14 MiB) when the statistics were run on only the first 10 books, which suggests that it is set
+by one large book processed early, not by the `Counter`. A text with any character outside
+Latin-1 (for example a curly quote) is stored by Python with 2 bytes per character, and
+`tokenize` holds several copies of the text at once (normalization, `casefold`, normalization
+again). In a quick experiment, a 5.5 MiB file with a single curly apostrophe needed 88.5 MiB at
+peak, versus 12.4 MiB for the same text without it.
 
-| Run                             | Position after 5 s (x, y) |
-| ------------------------------- | ------------------------- |
-| variable step, no throttling    | TODO                      |
-| variable step, CPU 6× slowdown  | TODO                      |
-| **fixed step**, no throttling   | TODO                      |
-| **fixed step**, CPU 6× slowdown | TODO                      |
+Laziness saves memory, not time: both versions do the same regex and counting work, so the elapsed
+time is about the same (15.4 s vs 15.9 s; the difference is noise).
 
-Headless confirmation (`npm run determinism`: the same `integrate()` in Node, 5 s of held thrust,
-different frame-time patterns; x is always 640 because the ship points up):
+## Tests
 
-| Frame pattern     | Fixed step (y) | Variable step (y) |
-| ----------------- | -------------- | ----------------- |
-| 60 Hz             | 342.327        | 336.191           |
-| 120 Hz            | 342.327        | 334.242           |
-| 144 Hz            | 342.327        | 332.899           |
-| jittery 10–30 ms  | 342.327        | 346.157           |
-| throttled ~100 ms | 342.327        | 391.498           |
+`uv run pytest` runs 20 tests: tokenizer rules (mixed case, Cyrillic, combining marks, apostrophes,
+hyphens, digits, empty input), generator behaviour of `iter_documents` / `tokenize`, bad-encoding
+handling, JSON-lines input, and the statistics pipeline.
 
-With a fixed step the trajectory is bit-identical regardless of frame rate. With a variable step it
-depends on how the frames happened to fall: the integration error grows with `dt`, so a slow machine
-literally simulates a different game. That is fatal for multiplayer (Lab 5), where client and server
-must compute the same result from the same inputs, and for collisions (a 250 ms frame can tunnel
-through a wall).
+## Course progress
 
-## Lab status
-
-- [x] Vite project, `"type": "module"`, ESLint + Prettier, `.nvmrc`
-- [x] `createLoop` (rAF + clamped accumulator) with steps/s, frames/s, frame time, HUD
-- [x] `createInput` closure with `isDown` and `justPressed`
-- [x] Pure `integrate`, wrap-around, no DOM in `src/sim/`
-- [x] Interpolated rendering (wrap-aware, angle-aware), DPR-aware resizable canvas
-- [ ] Experiments 1–3 measured on my machine and filled in above
-- [ ] Tag `lab-01`
+- [x] Lab 1 — iterators, generators, the corpus (tag `lab-01`)
