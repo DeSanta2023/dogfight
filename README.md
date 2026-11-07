@@ -72,9 +72,11 @@ cannot run away.
 Open the game with the URL parameter shown for each experiment (`http://localhost:5173/?exp=…`).
 All numbers are read from the in-game HUD (500 ms averaging window).
 
-Machine used: Windows, Google Chrome, display refresh ≈ 105 Hz (the normal run shows 105.4
-frames/s and a 9.5 ms mean frame time). <!-- TODO: add CPU model and the exact Chrome version -->
-Experiments 1 and 2 were run with the final tuning; the tuning does not affect loop timing.
+Machine used: Windows, Google Chrome, a high-refresh display (rAF runs show 103–118 frames/s
+depending on the run, i.e. a ≈ 120 Hz panel that does not hold its maximum under load).
+<!-- TODO: add CPU model, exact Chrome version and the refresh rate from Windows display settings -->
+
+Experiments were run with the final tuning; the tuning does not affect loop timing.
 
 ### Experiment 1 — blocking the frame (`?exp=block`)
 
@@ -109,19 +111,28 @@ the next frame: the game state stays correct, but the player still perceives the
 
 Record 10 s in the foreground, then 5 s in a background tab and back.
 
-| Metric                        | rAF (normal)       | `setInterval(16)`   |
-| ----------------------------- | ------------------ | ------------------- |
-| frames/s (foreground)         | 105.4              | 62.5                |
-| steps/s (foreground)          | 59.7               | 58.6                |
-| frame time mean / σ / max, ms | 9.53 / 2.95 / 15.0 | 15.98 / 0.49 / 17.0 |
-| after 5 s in background tab   | not measured       | TODO                |
+| Metric                        | rAF (normal)       | `setInterval(16)`                         |
+| ----------------------------- | ------------------ | ----------------------------------------- |
+| frames/s (foreground)         | 105.4              | 62.5                                      |
+| steps/s (foreground)          | 59.7               | 58.6                                      |
+| frame time mean / σ / max, ms | 9.53 / 2.95 / 15.0 | 15.98 / 0.49 / 17.0                       |
+| after 5 s in background tab   | not measured       | 62.5 / 58.6 steps/s / 15.98 / 0.85 / 17.7 |
 
-What differed: with rAF the frame rate follows the display (≈ 105 frames/s); with `setInterval(16)`
-it is pinned to the timer, **62.5 frames/s = 1000 / 16**, no matter what the monitor can do, so
-about 40% of the display's refresh opportunities show nothing new and the motion looks less smooth
-on a fast display. In this run the frame-time jitter was actually _lower_ with the timer (σ 0.49 vs
-2.95 ms): a timer fires at a regular 16 ms, whereas rAF frames land on the display's own refresh
-grid. So the cost of `setInterval` here is not noise in the frame time but the wrong rate and the
+A second foreground run of `?exp=interval` gave the same picture: 62.5 frames/s, 58.6 steps/s,
+16.00 / 0.68 / 17.5 ms.
+
+Background tab: the HUD read right after returning (about 5 s in another tab) is practically
+identical to the foreground one: 62.5 frames/s, σ 0.85 and max 17.7 ms against 0.49 and 17.0 ms. The
+pause itself is not visible in the numbers, because the HUD averages over 500 ms and the window had
+already refreshed by the time of the screenshot, so the loop had recovered immediately. What
+happens while the tab is hidden is therefore described from theory below, not from a measurement.
+
+What differed: with rAF the frame rate follows the display (103–118 frames/s in my runs); with
+`setInterval(16)` it is pinned to the timer, **62.5 frames/s = 1000 / 16**, no matter what the
+monitor can do, so roughly 40% of the display's refresh opportunities show nothing new and the
+motion looks less smooth on a fast display. In these runs the frame-time jitter was actually _lower_
+with the timer (σ 0.49–0.85 vs 2.95 ms): a timer fires at a regular 16 ms, whereas rAF frames land
+on the display's own refresh grid. So the cost of `setInterval` here is not noise in the frame time but the wrong rate and the
 lack of synchronisation with the display. Steps/s stays ≈ 60 either way (58.6 vs 59.7, within the
 ±1 step quantisation of a 500 ms window), which is exactly what the fixed-timestep accumulator is
 for: the simulation does not care how often frames arrive.
@@ -143,12 +154,23 @@ thrust and the HUD (and console) show its position after 5 s of simulated time. 
 DevTools → Performance → CPU: **No throttling** vs **6× slowdown**; repeat with plain
 `?autopilot=1` (fixed step).
 
-| Run                             | Position after 5 s (x, y)                                                  |
-| ------------------------------- | -------------------------------------------------------------------------- |
-| variable step, no throttling    | 640.000, 117.004 (HUD: 102.9 steps/s = 102.9 frames/s, one step per frame) |
-| variable step, CPU 6× slowdown  | TODO                                                                       |
-| **fixed step**, no throttling   | TODO (expected 640.000, 125.726, see below)                                |
-| **fixed step**, CPU 6× slowdown | TODO (expected the same)                                                   |
+| Run                             | Position after 5 s (x, y)                                                                                  |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| variable step, no throttling    | 640.000, 117.004 (HUD: 102.9 steps/s = 102.9 frames/s, one step per frame)                                 |
+| variable step, CPU 6× slowdown  | not captured in the browser; headless equivalent at the throttled frame time of 31.56 ms: 640.000, 121.605 |
+| **fixed step**, no throttling   | 640.000, **114.293** (HUD: 59.9 steps/s, 117.8 frames/s)                                                   |
+| **fixed step**, CPU 6× slowdown | 640.000, **114.293** (HUD: 59.5 steps/s, **31.7 frames/s**, frame time 31.56 ms, max 50.2)                 |
+
+The fixed-step ship ended at exactly the same point with 117.8 frames/s and with 31.7 frames/s: the
+CPU slowdown cut the rendered frames almost 4×, but the simulation still ran at ≈ 59.5–59.9 steps/s
+and produced an identical trajectory. With the variable step the result depends on the frame times
+(117.004 at ≈ 103 frames/s, 121.605 expected at 31.56 ms per frame).
+
+Why 114.293 and not the 125.726 of the table below: the 5-second check in `main.js` is
+`simTime >= 5` on a floating-point sum of 1/60 s. After 300 steps the sum is slightly below 5, so
+one more step (the 301st, 5.0167 s) is taken before the position is printed. The headless table
+below stops after exactly 300 steps; running 301 steps in Node gives the same 114.293 as the
+browser (and as the "60 Hz" variable row, which is also 301 steps of 1/60 s).
 
 Headless confirmation (`npm run determinism`: the same `integrate()` in Node, 5 s of held thrust,
 different frame-time patterns, final tuning; x is always 640 because the ship points up and wraps
@@ -162,9 +184,10 @@ around the arena, so y is the position modulo the 720-unit height):
 | jittery 10–30 ms  | 125.726        | 126.031           |
 | throttled ~100 ms | 125.726        | 109.325           |
 
-The browser measurement fits the headless table: on this ≈ 103 Hz display the variable-step ship
-ended at y = 117.004, between the 60 Hz (114.293) and 120 Hz (121.401) rows, while the fixed step
-gives 125.726 on every row.
+The browser measurement fits the headless table: on this ≈ 103 Hz run the variable-step ship ended
+at y = 117.004, between the 60 Hz (114.293) and 120 Hz (121.401) rows, while the fixed step gives
+the same position on every row (125.726 after 300 steps, 114.293 after the 301 steps the browser
+takes).
 
 With a fixed step the trajectory is bit-identical regardless of frame rate. With a variable step it
 depends on how the frames happened to fall: the integration error grows with `dt`, so a slow machine
@@ -180,6 +203,6 @@ through a wall).
 - [x] Pure `integrate`, wrap-around, no DOM in `src/sim/`
 - [x] Interpolated rendering (wrap-aware, angle-aware), DPR-aware resizable canvas
 - [x] Tuning notes written
-- [x] Experiment 1 measured; experiment 2 foreground measured (background tab still to do)
-- [ ] Experiment 3: remaining three browser runs (variable + throttle, fixed ± throttle)
-- [ ] Tag `lab-01`
+- [x] Experiments 1 and 2 measured
+- [x] Experiment 3 measured (variable step + CPU throttling: headless equivalent)
+- [x] Tag `lab-01`
