@@ -10,7 +10,10 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "determinism": "node scripts/determinism.mjs"
+    "determinism": "node scripts/determinism.mjs",
+    "test": "node --test",
+    "this-bug": "node scripts/this-bug.mjs",
+    "prototypes": "node scripts/prototype-chain.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

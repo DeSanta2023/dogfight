@@ -1,16 +1,8 @@
 import { ARENA } from '../sim/arena.js';
+import { createRng } from '../sim/rng.js';
 
 // ---- deterministic starfield (seeded PRNG so it looks the same every run) ----
-function mulberry32(seed) {
-  let a = seed;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-const rand = mulberry32(1337);
+const { next: rand } = createRng(1337);
 const STARS = Array.from({ length: 140 }, () => ({
   x: rand() * ARENA.width,
   y: rand() * ARENA.height,
@@ -88,7 +80,7 @@ function drawShipBody(ctx, thrust) {
  * Draw a ship. Also draws "ghost" copies when it is near an edge so it appears to slide
  * through the border smoothly instead of popping out on the other side.
  */
-export function drawShip(ctx, ship) {
+export function drawShip(ctx, ship, { blink = false, shield = false } = {}) {
   const margin = 20;
   const xs = [0];
   const ys = [0];
@@ -102,7 +94,16 @@ export function drawShip(ctx, ship) {
       ctx.save();
       ctx.translate(ship.x + dx, ship.y + dy);
       ctx.rotate(ship.angle);
+      ctx.globalAlpha = blink ? 0.3 : 1;
       drawShipBody(ctx, ship.thrust);
+      ctx.globalAlpha = 1;
+      if (shield) {
+        ctx.strokeStyle = 'rgba(110, 255, 220, 0.85)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, 24, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       ctx.restore();
     }
   }

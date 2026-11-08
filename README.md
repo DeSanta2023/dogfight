@@ -1,39 +1,223 @@
-# Dogfight — Lab 01: The Event Loop Is the Game Loop
+# Dogfight
 
-A spaceship you fly on a canvas at 60 simulation steps per second on any monitor, rendered with
-interpolation. Vanilla JavaScript (ES modules) + Vite. This is step 1 of the multiplayer arena
-game built across the course.
+A multiplayer-ready space dogfight built step by step in a JavaScript course (vanilla JS, ES
+modules, Vite; the server comes in later labs).
+
+| Lab | Topic                                    | Tag      | Where to look                       |
+| --- | ---------------------------------------- | -------- | ----------------------------------- |
+| 01  | Event loop, fixed-timestep game loop     | `lab-01` | [Lab 01](#lab-01--the-game-loop)    |
+| 02  | Objects, prototypes, `this`, composition | `lab-02` | [Lab 02](#lab-02--the-entity-model) |
 
 ## Run
 
 ```bash
-nvm use            # Node 22 (see .nvmrc)
+nvm use              # Node 22 (see .nvmrc)
 npm install
-npm run dev        # open the printed URL
-npm run lint       # ESLint (flat config) + eslint-config-prettier
-npm run format     # Prettier
-npm run determinism  # headless version of experiment 3 (Node, no browser)
+npm run dev          # open the printed URL
+npm test             # 35 tests (node:test), no browser needed
+npm run lint         # ESLint (flat config) + eslint-config-prettier
+npm run format       # Prettier
+npm run determinism  # Lab 01 experiment 3, headless
+npm run this-bug     # Lab 02: the `this` bug and its three fixes, printed
+npm run prototypes   # Lab 02: delegation / `this` / Map-vs-object / prototype chain
 ```
 
-Controls: **← → / A D** rotate, **↑ / W** thrust, **R** reset. The HUD (top-left) shows
-steps/s, frames/s, frame time (mean, σ, max) and CPU work per frame.
+Controls: **← → / A D** rotate, **↑ / W** thrust, **Space** fire, **R** restart. The HUD at the top
+left shows steps/s, frames/s, frame time and CPU work per frame (Lab 01); the one at the top right
+shows score, hp, deaths and active pickup effects. Add `?seed=123` to the URL to get the same
+asteroids and pickups every run.
 
 ## Structure
 
 ```
-index.html            <canvas> + <script type="module">
-src/main.js           wires everything; reads experiment switches from the URL
-src/loop.js           createLoop({ step, simulate, render }) — rAF + clamped accumulator
-src/input.js          createInput(target) — closure over key state (isDown / justPressed)
-src/sim/ship.js       createShip(), integrate(ship, input, dt) — pure, no DOM
-src/sim/arena.js      arena size, wrap-around, shortest-path helpers
-src/render/canvas.js  DPR-aware canvas setup + resize
-src/render/draw.js    arena/starfield, ship (translate/rotate), HUD
-src/render/interpolate.js  wrap-aware position lerp + shortest-angle lerp
-scripts/determinism.mjs    experiment 3 without a browser
+index.html                  <canvas> + <script type="module">
+src/main.js                 wires loop + input + Game + rendering; reads URL switches
+src/loop.js                 createLoop({ step, simulate, render }) — rAF + clamped accumulator
+src/input.js                createInput(target) — closure over key state (isDown / justPressed)
+src/sim/                    the simulation: NO DOM, NO canvas, NO Math.random — runs in Node
+  vector.js                 Vector2: immutable, pure methods
+  entity.js                 Entity base class (private static #nextId, composed behaviors)
+  ship.js                   Ship extends Entity; Lab 01's pure integrate() lives here too
+  entities.js               Bullet, Asteroid, Pickup, Explosion (all extend Entity)
+  behaviors.js              homing(): a composed capability, not a class
+  world.js                  World over Map<id, Entity>: spawn / despawn / iterator / *ofKind / step
+  collision.js              findCollisions(world) -> [a, b] pairs (swappable system)
+  game.js                   match rules: score, respawn, refills, pickups (seeded rng)
+  arena.js, rng.js          arena size + edge rules; seeded PRNG closure
+src/render/                 canvas, interpolation, drawing (reads sim state, never writes it)
+test/                       35 tests for the above
+scripts/                    determinism.mjs (Lab 01), this-bug.mjs, prototype-chain.mjs (Lab 02)
 ```
 
-## Design notes
+## Lab 02 — the entity model
+
+One ship became a world: ships, bullets, asteroids, pickups and explosions, an entity manager,
+collisions, shooting, respawn and a score. Inheritance stays one level deep; everything else is
+composed.
+
+### The game
+
+- Fly, shoot with **Space**. Asteroids come in sizes 1–3 (hp = size); small ones are sometimes
+  _hunters_ that slowly steer toward you. Ships have 3 hp and are invulnerable for 1.5 s after a hit.
+- A destroyed ship explodes into particles and respawns after 2 s at a random safe spot, protected
+  for 2 s. Score: 50 × size for every asteroid destroyed by a bullet.
+- Pickups (stationary rings, collected by flying into them): **S** shield, **R** rapid fire (8 s each),
+  **H** homing bullets (10 s).
+
+### Class tree (one level, on purpose)
+
+```
+Entity            id (private static counter), pose, vel, radius, kind, alive, behaviors[], update()
+├── Ship          private #hp + `get hp()`, fire(), effects: Map<name, secondsLeft>
+├── Bullet        ttl, damage, ownerId
+├── Asteroid      size, hp, optional `homing` behavior
+├── Pickup        stationary + collidable, apply(collector)
+└── Explosion     a burst of short-lived particles
+```
+
+### The `this` bug (encountered on purpose, then fixed)
+
+`Ship.fire()` reads `this` (cooldown, pose, world). It works as `ship.fire()` because the call site
+puts the ship to the left of the dot (implicit binding). Inside the game it is always called that
+way (`this.fire()` from `Ship.update`), so the bug only appears when someone wires it up naively:
+
+```js
+canvas.addEventListener('click', ship.fire); // passes the function, loses the ship
+```
+
+`npm run this-bug` reproduces it (and `test/entities.test.js` pins it down):
+
+| Call site                       | `this` inside `fire`                     | What happens                                                       |
+| ------------------------------- | ---------------------------------------- | ------------------------------------------------------------------ |
+| `const f = ship.fire; f()`      | `undefined` (class bodies are strict)    | `TypeError: Cannot read properties of undefined (reading 'alive')` |
+| DOM listener (`f.call(canvas)`) | the element                              | **silently** returns `null`, no bullet                             |
+| `setTimeout(ship.fire, 0)`      | `Timeout` in Node, `window` in a browser | **silently** returns `null`, no bullet                             |
+
+The silent variants are the dangerous ones: no error, the ship just stops shooting.
+
+Three fixes, with what each one costs (all measured in `npm run this-bug`):
+
+| Fix                        | Code                   | Downside                                                                                                                                                                                    |
+| -------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Wrapper arrow              | `() => ship.fire()`    | a new function each time you write it (keep the reference if you need `removeEventListener`)                                                                                                |
+| `bind`                     | `ship.fire.bind(ship)` | creates a new function on every call (`bind(x) === bind(x)` is `false`); permanently tied to that one object                                                                                |
+| Arrow function class field | `fire = () => { … }`   | one function per instance (`a.fire !== b.fire`), not on the prototype (`Ship.prototype.fire` is `undefined`), so a subclass cannot `super.fire()` and it cannot be stubbed on the prototype |
+
+**Chosen: the wrapper arrow, resolving the ship at call time**, e.g.
+`() => game.ship?.fire()`. In this game the ship _object_ is replaced on every respawn
+(`game.ship` is a new `Ship` after each death). A `bind(ship)` or an arrow field captured at start-up
+would keep pointing at the dead ship and silently stop shooting after the first death; the wrapper
+looks up the current ship each time. It also keeps `fire` as one shared method on the prototype.
+
+### Design note: composition instead of a deep hierarchy
+
+The two features that break a class tree: **(a)** _homing_ that can steer a bullet or an asteroid,
+**(b)** a _pickup_ that is stationary and collidable but is not a ship.
+
+**The inheritance version I did not build.** `Bullet → HomingBullet` and
+`Asteroid → HomingAsteroid` copy the same steering code; hoisting it into a shared parent needs a
+class that is both a "projectile" and a "rock" (an asteroid is not a projectile), or puts homing into
+`Entity` so every entity carries it. JavaScript has single inheritance, so "homing + shielded +
+rapid" would need a class per combination (kinds × capabilities). And the pickup would have to
+extend `Ship` (inheriting hp, `fire()` and input handling it never uses) or re-implement position,
+radius and collision.
+
+**What I built instead.**
+
+- `Entity` keeps only what every entity really shares: id, pose, velocity, radius, `kind`, `alive`
+  and `update()`. One level of `extends`, no more.
+- Capabilities are **behavior objects** `{ name, update(entity, dt, world) }` kept in
+  `entity.behaviors`. `homing({ targetKind, turnRate, range })` is a single function that steers
+  whatever it is attached to. Hunter asteroids get it at construction; a bullet gets it in
+  `Ship.fire()` while the _homing_ effect is active. One behavior, two kinds of entity
+  (`test/world.test.js`: "homing steers one behavior object onto BOTH a bullet and an asteroid").
+  Ships run their behaviors too (even though `Ship.update` does not call `super.update()`).
+- `Pickup` is its own `Entity` subclass: `update()` only counts down its time-to-live, it is `solid`,
+  and when a ship touches it, `pickup.apply(ship)` calls `ship.addEffect(type, seconds)`
+  (duck-typed: anything with `addEffect` can collect it). The effects themselves (`shield`,
+  `rapid`, `homing`) are plain data in a `Map<name, secondsLeft>` on the ship, not subclasses.
+
+**Why not the other options.** Mixins (`Object.assign` onto a prototype) apply to a whole class,
+but homing is a _per-instance, runtime_ decision (only bullets fired during the pickup).
+Behavior-as-data with a `switch (kind)` pushes all the logic into one function that grows with every
+feature. An array of behavior objects can be attached, detached and tested one at a time.
+
+**What it costs.** An extra loop and indirection per entity; behaviors are found by string name
+(`hasBehavior('homing')`) rather than by type; if several behaviors change the velocity, their order
+matters; `homing` scans every target each step (O(n) per homing entity — fine for a few dozen
+entities, Lab 7 will measure it).
+
+### Other design decisions
+
+- **`World` is a `Map<id, Entity>`.** Numeric ids stay numbers (an object would turn them into
+  strings), iteration follows insertion order, `.size` is O(1), there are no inherited keys like
+  `"constructor"`, and add/delete is what `Map` is built for. `World` is iterable
+  (`[Symbol.iterator]`) and `*ofKind(kind)` is a generator, so no intermediate arrays.
+- **Deferred despawn.** `despawn()` and `kill()` only mark an entity dead; one sweep at the end of
+  `step()` deletes it, so nothing is removed from the `Map` while it is being iterated. A step is:
+  snapshot → update → edge rule → collisions → sweep. Entities spawned during a step (bullets)
+  start updating on the next one.
+- **Mutation vs new state.** Entities are mutated in place (no garbage per step); `Vector2` is
+  immutable and frozen, so `pos = pos.add(…)` allocates. The previous pose is kept as an explicit
+  copy (`prevPos`, `prevAngle`) for the renderer's interpolation. Lab 7 decides whether the
+  allocations matter.
+- **Collisions are a separate system**: `findCollisions(world)` returns `[a, b]` pairs (naive
+  O(n²), circle against circle) and decides nothing; `World` takes it as a constructor argument so a
+  spatial hash can replace it. Known limitation: distances are not wrap-aware, so a ship straddling
+  an edge does not collide with something on the other side of the seam.
+- **Private state.** `#hp` can only change through `takeDamage()`; `ship.hp = 99` throws in strict
+  mode, and a test checks it never leaves `0..maxHp`.
+- **Determinism.** The simulation never calls `Math.random()`; the seed is chosen in `main.js`, and
+  the same seed + inputs give an identical world (tested). Lab 01's pure `integrate()` is still what
+  moves the ship, and a regression test reproduces the Lab 01 trajectory (the autopilot still ends
+  at y = 114.293).
+- **Not done / simplifications.** Bullets do not hit pickups, asteroids do not hit each other, and
+  asteroids do not split.
+
+### Console experiments (`npm run prototypes`)
+
+**1. Delegation.** With `b = Object.create(a)`, `b.hello()` finds the method on `a`; nothing is
+copied. After `a.hello = …`, `b.hello()` returns the new value. After `b.hello = …` the own property
+**shadows** the inherited one, and `delete b.hello` makes the lookup fall through to `a` again.
+
+**2. `this`.** For `class A { m() { return this; } }` with `const m = a.m`:
+
+| Expression                    | Result      | Rule                                                           |
+| ----------------------------- | ----------- | -------------------------------------------------------------- |
+| `a.m() === a`                 | `true`      | implicit binding (object left of the dot)                      |
+| `m()`                         | `undefined` | default binding; class bodies are strict, so not `globalThis`  |
+| `m.call(a) === a`             | `true`      | explicit binding                                               |
+| `new A() instanceof A`        | `true`      | `new` binding                                                  |
+| `A()`                         | `TypeError` | a class cannot be called without `new`                         |
+| `arrow.call({})` (module top) | `undefined` | arrow functions take `this` lexically and ignore `call`/`bind` |
+
+**3. Keys.** `{ "1": "x" }[1]` is `"x"`: the object turns the key into the string `"1"`.
+`new Map([[1, "x"]]).get("1")` is `undefined`: the `Map` key is the number `1`, and `"1"` is a
+different key. Also, `{}["constructor"] === Object` (an inherited key shows up in a plain object)
+while `map.get("constructor")` is `undefined`.
+
+**The prototype chain of a real ship** (`const ship = new Ship()`):
+
+```
+ship ──► Ship.prototype ──► Entity.prototype ──► Object.prototype ──► null
+         update (override)   snapshot, move, …     toString, …
+```
+
+`Object.hasOwn(ship, "update")` is `false`; `update` is found on `Ship.prototype` (the override).
+`ship.snapshot === Entity.prototype.snapshot` is `true`: it is looked up, not copied.
+`Object.getPrototypeOf(Ship) === Entity`, so static members are inherited too.
+
+### Tests
+
+`npm test` runs 35 tests (`node --test`, no dependencies) covering `Vector2` purity, the one-level
+class tree, private `#id` and `#hp`, the `this` bug and its fixes, `World` (iteration, `ofKind`,
+deferred despawn, safe removal during iteration, edge rules, swappable collisions), damage,
+pickups, explosions, respawn, score, the shared `homing` behavior and the determinism of a whole
+match.
+
+## Lab 01 — the game loop
+
+### Design notes
 
 - **Fixed timestep.** `simulate(1/60)` is called zero or more times per rendered frame from an
   accumulator; the frame delta is clamped to 0.25 s so a hitch can't cause a spiral of death.
@@ -52,7 +236,7 @@ scripts/determinism.mjs    experiment 3 without a browser
 - **DPR.** Backing store = CSS size × `devicePixelRatio`; the transform is re-applied every frame
   (`setTransform`), and the logical 1280×720 arena is letterboxed into the window.
 
-## Tuning notes
+### Tuning notes
 
 Starting values (`TUNING` in `src/sim/ship.js`) → final values:
 
@@ -67,7 +251,7 @@ Drag and the speed cap are linked: terminal speed without a cap is roughly `thru
 (380 / 0.5 = 760 units/s), so a cap of 686 is where thrust still feels responsive but the ship
 cannot run away.
 
-## Experiments
+### Experiments
 
 Open the game with the URL parameter shown for each experiment (`http://localhost:5173/?exp=…`).
 All numbers are read from the in-game HUD (500 ms averaging window).
@@ -78,7 +262,7 @@ depending on the run, i.e. a ≈ 120 Hz panel that does not hold its maximum und
 
 Experiments were run with the final tuning; the tuning does not affect loop timing.
 
-### Experiment 1 — blocking the frame (`?exp=block`)
+#### Experiment 1 — blocking the frame (`?exp=block`)
 
 `render` busy-waits 100 ms every 60th frame (`while (performance.now() < t + 100) {}`).
 
@@ -107,7 +291,7 @@ work shorter, split it across frames, or move it to another thread (Web Worker �
 The accumulator then sees one frame of ≈100 ms and compensates by running ≈6 simulation steps in
 the next frame: the game state stays correct, but the player still perceives the freeze.
 
-### Experiment 2 — `setInterval(frame, 16)` instead of rAF (`?exp=interval`)
+#### Experiment 2 — `setInterval(frame, 16)` instead of rAF (`?exp=interval`)
 
 Record 10 s in the foreground, then 5 s in a background tab and back.
 
@@ -147,7 +331,7 @@ when the tab comes back: it catches up at most 0.25 s (15 steps) instead of simu
 `requestAnimationFrame` runs _right before the next paint_, receives the frame timestamp, follows
 the actual refresh rate (60/120/144 Hz) and stops when the page is hidden.
 
-### Experiment 3 — variable timestep (`?exp=variable&autopilot=1`)
+#### Experiment 3 — variable timestep (`?exp=variable&autopilot=1`)
 
 `simulate(dt)` once per frame with the real elapsed time. With `&autopilot=1` the ship holds
 thrust and the HUD (and console) show its position after 5 s of simulated time. Compare in Chrome
@@ -197,12 +381,22 @@ through a wall).
 
 ## Lab status
 
+**Lab 01**
+
 - [x] Vite project, `"type": "module"`, ESLint + Prettier, `.nvmrc`
 - [x] `createLoop` (rAF + clamped accumulator) with steps/s, frames/s, frame time, HUD
 - [x] `createInput` closure with `isDown` and `justPressed`
 - [x] Pure `integrate`, wrap-around, no DOM in `src/sim/`
 - [x] Interpolated rendering (wrap-aware, angle-aware), DPR-aware resizable canvas
-- [x] Tuning notes written
-- [x] Experiments 1 and 2 measured
-- [x] Experiment 3 measured (variable step + CPU throttling: headless equivalent)
-- [x] Tag `lab-01`
+- [x] Tuning notes, experiments 1–3 measured (tag `lab-01`)
+
+**Lab 02**
+
+- [x] `Vector2` (pure, immutable), `Entity` with private static id counter, `Ship extends Entity`
+- [x] `World` over `Map`: iterable, `*ofKind`, deferred despawn sweep
+- [x] `Bullet` (TTL), `Asteroid`, `Explosion`, `Pickup`; `Ship.fire()`
+- [x] `this` bug documented with three fixes and the chosen one
+- [x] Collision system as a swappable function; damage via `#hp`; respawn; score HUD
+- [x] Homing and pickups by composition; design note
+- [x] Console experiments (`npm run prototypes`), 35 tests
+- [ ] Tag `lab-02`

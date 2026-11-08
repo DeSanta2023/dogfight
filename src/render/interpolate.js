@@ -18,3 +18,17 @@ export function interpolateShip(prev, cur, alpha) {
     thrust: cur.thrust,
   };
 }
+
+/**
+ * Same blend for a World entity, which carries its own explicit previous pose
+ * (`prevPos`, `prevAngle`, saved by Entity.snapshot() before every step).
+ */
+export function interpolateEntity(entity, alpha) {
+  const { prevPos: prev, pos: cur } = entity;
+  return {
+    x: wrap(prev.x + wrappedDelta(prev.x, cur.x, ARENA.width) * alpha, ARENA.width),
+    y: wrap(prev.y + wrappedDelta(prev.y, cur.y, ARENA.height) * alpha, ARENA.height),
+    angle: entity.prevAngle + angleDelta(entity.prevAngle, entity.angle) * alpha,
+    thrust: entity.thrust ?? 0,
+  };
+}
