@@ -14,11 +14,20 @@ export default [
     },
   },
   {
-    files: ['scripts/**/*.mjs', 'test/**/*.js', '*.config.js'],
+    files: ['scripts/**/*.mjs', 'test/**/*.js', 'tools/**/*.js', '*.config.js'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
       globals: globals.node,
+    },
+  },
+  {
+    // The puzzles run both in Node (npm test) and in the browser (puzzles/index.html).
+    files: ['puzzles/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: { ...globals.browser, ...globals.node },
     },
   },
   {

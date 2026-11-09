@@ -1,0 +1,32 @@
+{
+  "rooms": [
+    {
+      "id": "quiet-orbit",
+      "name": "Quiet Orbit",
+      "players": 1,
+      "maxPlayers": 4,
+      "arena": { "asteroids": 3, "pickups": false, "hunterChance": 0, "seed": 101 }
+    },
+    {
+      "id": "rock-garden",
+      "name": "Rock Garden",
+      "players": 2,
+      "maxPlayers": 6,
+      "arena": { "asteroids": 9, "pickups": true, "hunterChance": 0.2, "seed": 202 }
+    },
+    {
+      "id": "hunters-nest",
+      "name": "Hunters' Nest",
+      "players": 3,
+      "maxPlayers": 8,
+      "arena": { "asteroids": 10, "pickups": true, "hunterChance": 1, "seed": 303 }
+    },
+    {
+      "id": "full-house",
+      "name": "Full House",
+      "players": 4,
+      "maxPlayers": 4,
+      "arena": { "asteroids": 5, "pickups": true, "hunterChance": 0.4, "seed": 404 }
+    }
+  ]
+}

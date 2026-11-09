@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Lab 03 — puzzle 5: requestAnimationFrame</title>
+    <style>
+      body {
+        font:
+          14px ui-monospace,
+          Menlo,
+          Consolas,
+          monospace;
+        background: #05070f;
+        color: #d7e3ff;
+        padding: 24px;
+      }
+      pre {
+        background: #0d1530;
+        padding: 12px;
+        border-radius: 6px;
+      }
+      .ok {
+        color: #b8ffb8;
+      }
+      .bad {
+        color: #ff9d9d;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Puzzle 5 — requestAnimationFrame</h1>
+    <p>
+      Prediction (only what the spec guarantees): <code>sync</code>, then
+      <code>microtask</code>; each rAF callback is followed by its own microtask
+      checkpoint (<code>raf → microtask in raf → raf 2</code>); and
+      <code>timeout</code> comes somewhere after <code>microtask</code>. Whether
+      <code>timeout</code> is before or after <code>raf</code> is NOT guaranteed: they are
+      different task sources.
+    </p>
+    <pre id="out">running…</pre>
+    <p id="verdict"></p>
+    <p>
+      Reload a few times: the guaranteed parts never change; the timeout/raf order may.
+    </p>
+    <script type="module">
+      const log = [];
+      // The guaranteed part of the order, as a check on the recorded log.
+      const holds = (l) =>
+        l[0] === 'sync' &&
+        l[1] === 'microtask' &&
+        l.indexOf('microtask in raf') === l.indexOf('raf') + 1 &&
+        l.indexOf('raf 2') === l.indexOf('microtask in raf') + 1 &&
+        l.includes('timeout');
+
+      setTimeout(() => log.push('timeout'), 0);
+      requestAnimationFrame(() => {
+        log.push('raf');
+        Promise.resolve().then(() => log.push('microtask in raf'));
+      });
+      requestAnimationFrame(() => log.push('raf 2'));
+      Promise.resolve().then(() => log.push('microtask'));
+      log.push('sync');
+
+      // Wait for the frame to be over before reading the log.
+      setTimeout(() => {
+        document.getElementById('out').textContent = log.join(' → ');
+        const ok = holds(log);
+        const verdict = document.getElementById('verdict');
+        const first = log.indexOf('timeout') < log.indexOf('raf') ? 'timeout' : 'raf';
+        verdict.textContent = ok
+          ? `matches the prediction (this time ${first} ran first)`
+          : 'DIFFERS from the prediction';
+        verdict.className = ok ? 'ok' : 'bad';
+        window.__puzzle5 = { log, ok };
+      }, 300);
+    </script>
+  </body>
+</html>

@@ -27,8 +27,18 @@ const PICKUP_STYLE = {
 };
 
 /** Draw one World entity at its interpolated pose. Pure rendering: reads sim state, never writes. */
-export function drawEntity(ctx, entity, alpha) {
+export function drawEntity(ctx, entity, alpha, sprites = null) {
   const pose = interpolateEntity(entity, alpha);
+
+  // Sprites first. If there is no sheet (it failed to load) or no frame for this entity,
+  // draw() returns false and we fall through to the built-in vector art below.
+  if (sprites && entity.kind !== 'explosion') {
+    const blink =
+      entity.kind === 'ship' &&
+      entity.invulnerable &&
+      Math.floor(performance.now() / 90) % 2 === 0;
+    if (sprites.draw(ctx, entity, pose, { blink })) return;
+  }
 
   switch (entity.kind) {
     case 'ship':

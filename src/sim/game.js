@@ -16,6 +16,12 @@ const NO_INPUTS = new Map();
  */
 export class Game {
   world = new World();
+  /**
+   * Outbound notifications: "fired", "hit", "exploded", "collected" as CustomEvents whose
+   * `detail` is plain data (numbers and strings, never entities). Audio and the HUD subscribe;
+   * the simulation imports neither, and nothing it does depends on who is listening.
+   */
+  events = new EventTarget();
   ship = null;
   score = 0;
   deaths = 0;
@@ -26,9 +32,9 @@ export class Game {
   #asteroidTimer = 0;
   #pickupTimer;
 
-  constructor({ seed = 1, asteroids = 5, pickups = true } = {}) {
+  constructor({ seed = 1, asteroids = 5, pickups = true, hunterChance = 0.4 } = {}) {
     this.#rng = createRng(seed);
-    this.#config = { asteroids, pickups };
+    this.#config = { asteroids, pickups, hunterChance };
     this.#pickupTimer = this.#rng.range(6, 10);
 
     this.ship = this.world.spawn(new Ship());
@@ -53,8 +59,37 @@ export class Game {
     this.#runTimers(dt);
   }
 
+  #publish(type, detail) {
+    this.events.dispatchEvent(new CustomEvent(type, { detail }));
+  }
+
   #handleEvents() {
     for (const event of this.world.drainEvents()) {
+      if (event.type === 'fired') {
+        const { entity, by } = event;
+        this.#publish('fired', { x: entity.pos.x, y: entity.pos.y, by: by.kind });
+        continue;
+      }
+      if (event.type === 'hit') {
+        const { target, by } = event;
+        this.#publish('hit', {
+          x: target.pos.x,
+          y: target.pos.y,
+          target: target.kind,
+          by: by?.kind ?? null,
+        });
+        continue;
+      }
+      if (event.type === 'collected') {
+        const { entity, by } = event;
+        this.#publish('collected', {
+          x: entity.pos.x,
+          y: entity.pos.y,
+          type: entity.type,
+          by: by.kind,
+        });
+        continue;
+      }
       if (event.type !== 'destroyed') continue;
       const { entity, by } = event;
 
@@ -72,6 +107,12 @@ export class Game {
         this.deaths++;
         this.ship = null;
         this.#respawnIn = RESPAWN_DELAY;
+        this.#publish('exploded', {
+          x: entity.pos.x,
+          y: entity.pos.y,
+          kind: 'ship',
+          points: 0,
+        });
       } else if (entity.kind === 'asteroid') {
         this.world.spawn(
           new Explosion({
@@ -81,7 +122,15 @@ export class Game {
             speed: 140,
           }),
         );
-        if (by?.kind === 'bullet') this.score += entity.points;
+        const points = by?.kind === 'bullet' ? entity.points : 0;
+        this.score += points;
+        this.#publish('exploded', {
+          x: entity.pos.x,
+          y: entity.pos.y,
+          kind: 'asteroid',
+          size: entity.size,
+          points,
+        });
       }
     }
   }
@@ -146,7 +195,7 @@ export class Game {
     const size = rng.pick([1, 2, 2, 3, 3]);
     const pos = this.#safeSpot(220);
     const vel = Vector2.fromAngle(rng.range(0, Math.PI * 2), rng.range(35, 90));
-    const hunter = size === 1 && rng.next() < 0.4;
+    const hunter = size === 1 && rng.next() < this.#config.hunterChance;
     this.world.spawn(new Asteroid({ pos, vel, size, hunter }));
   }
 }

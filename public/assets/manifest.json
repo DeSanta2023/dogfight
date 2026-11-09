@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "note": "onError: 'fail' = the game cannot start without it (Retry button); 'fallback' = the game starts with a built-in substitute; 'skip' = the asset is simply omitted.",
+  "assets": {
+    "arena": { "type": "json", "url": "assets/arena.json", "onError": "fail" },
+    "atlas": { "type": "json", "url": "assets/sprites.json", "onError": "fallback" },
+    "sprites": { "type": "image", "url": "assets/sprites.png", "onError": "fallback" },
+    "shoot": { "type": "audio", "url": "assets/sounds/shoot.wav", "onError": "skip" },
+    "hit": { "type": "audio", "url": "assets/sounds/hit.wav", "onError": "skip" },
+    "explode": { "type": "audio", "url": "assets/sounds/explode.wav", "onError": "skip" },
+    "pickup": { "type": "audio", "url": "assets/sounds/pickup.wav", "onError": "skip" }
+  }
+}

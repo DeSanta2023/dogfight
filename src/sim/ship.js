@@ -124,6 +124,7 @@ export class Ship extends Entity {
   takeDamage(amount, source = null) {
     if (!this.alive || this.invulnerable || this.hasEffect('shield')) return false;
     this.#hp = Math.max(0, this.#hp - amount);
+    this.world?.emit({ type: 'hit', target: this, by: source }); // before kill(): hit, then destroyed
     if (this.#hp === 0) this.kill(source);
     else this.#invulnerable = SHIP.hitInvulnerability;
     return true;
@@ -183,7 +184,9 @@ export class Ship extends Entity {
     if (this.hasEffect('homing')) {
       bullet.addBehavior(homing({ targetKind: 'asteroid', turnRate: 3.2, range: 420 }));
     }
-    return this.world.spawn(bullet);
+    this.world.spawn(bullet);
+    this.world.emit({ type: 'fired', entity: bullet, by: this });
+    return bullet;
   }
 
   onCollide(other) {

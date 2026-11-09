@@ -13,7 +13,9 @@
     "determinism": "node scripts/determinism.mjs",
     "test": "node --test",
     "this-bug": "node scripts/this-bug.mjs",
-    "prototypes": "node scripts/prototype-chain.mjs"
+    "prototypes": "node scripts/prototype-chain.mjs",
+    "puzzles": "node scripts/puzzles.mjs",
+    "load-timing": "node scripts/load-timing.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

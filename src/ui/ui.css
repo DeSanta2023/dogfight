@@ -1,0 +1,129 @@
+#overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none; /* the canvas stays visible; only the panel takes clicks */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #d7e3ff;
+}
+#overlay[hidden] {
+  display: none;
+}
+.panel {
+  pointer-events: auto;
+  width: min(560px, calc(100vw - 32px));
+  padding: 24px 28px;
+  background: rgba(8, 12, 26, 0.92);
+  border: 1px solid rgba(120, 200, 255, 0.45);
+  border-radius: 10px;
+  box-shadow: 0 0 40px rgba(60, 120, 255, 0.18);
+}
+.panel h1 {
+  margin: 0 0 4px;
+  font-size: 26px;
+  letter-spacing: 0.24em;
+  color: #7fe3ff;
+}
+.panel .sub {
+  margin: 0 0 16px;
+  opacity: 0.7;
+}
+.panel label {
+  display: block;
+  margin-bottom: 12px;
+}
+.panel input {
+  font: inherit;
+  color: inherit;
+  background: #0d1530;
+  border: 1px solid #38508f;
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin-left: 6px;
+}
+.panel button {
+  font: inherit;
+  color: #05070f;
+  background: #7fe3ff;
+  border: 0;
+  border-radius: 4px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.panel button:disabled {
+  background: #38508f;
+  color: #9fb0d8;
+  cursor: not-allowed;
+}
+.panel button:focus-visible,
+.panel input:focus-visible {
+  outline: 2px solid #ffe27a;
+  outline-offset: 2px;
+}
+.rooms {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+.rooms li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  grid-template-areas: 'name count join' 'arena arena join';
+  column-gap: 14px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(120, 160, 255, 0.15);
+}
+.room-name {
+  grid-area: name;
+  font-weight: bold;
+}
+.room-count {
+  grid-area: count;
+  color: #b8ffb8;
+}
+.room-arena {
+  grid-area: arena;
+  font-size: 12px;
+  opacity: 0.65;
+}
+.rooms li button {
+  grid-area: join;
+}
+.status {
+  margin: 0 0 8px;
+  font-size: 13px;
+  opacity: 0.8;
+}
+.status[data-state='error'] {
+  color: #ff9d9d;
+  opacity: 1;
+}
+.message,
+.notice {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+.message {
+  color: #ff9d9d;
+  min-height: 1em;
+}
+.notice {
+  color: #ffd166;
+}
+.hint {
+  margin: 14px 0 0;
+  font-size: 12px;
+  opacity: 0.5;
+}
+.panel.error h1 {
+  color: #ff8a8a;
+  font-size: 20px;
+  letter-spacing: 0.12em;
+}
+@media (max-width: 480px) {
+  .panel {
+    padding: 18px 16px;
+  }
+}

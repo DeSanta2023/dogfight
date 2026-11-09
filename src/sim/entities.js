@@ -58,6 +58,7 @@ export class Asteroid extends Entity {
 
   takeDamage(amount, source) {
     this.hp -= amount;
+    this.world?.emit({ type: 'hit', target: this, by: source }); // before kill(): hit, then destroyed
     if (this.hp <= 0) this.kill(source);
   }
 }
@@ -86,6 +87,7 @@ export class Pickup extends Entity {
   apply(collector) {
     collector.addEffect(this.type, PICKUP_DURATION[this.type]);
     this.alive = false;
+    this.world?.emit({ type: 'collected', entity: this, by: collector });
   }
 }
 

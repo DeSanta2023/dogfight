@@ -121,10 +121,14 @@ test('a bullet damages an asteroid; hp 0 destroys it and the event names the kil
   assert.equal(target.alive, false);
   assert.equal(bullet.alive, false);
   const events = world.drainEvents();
-  assert.equal(events.length, 1);
-  assert.equal(events[0].type, 'destroyed');
-  assert.equal(events[0].entity, target);
-  assert.equal(events[0].by, bullet);
+  assert.deepEqual(
+    events.map((e) => e.type),
+    ['hit', 'destroyed'],
+    'the hit lands first, then the asteroid is destroyed',
+  );
+  assert.equal(events[0].target, target);
+  assert.equal(events[1].entity, target);
+  assert.equal(events[1].by, bullet);
   assert.deepEqual(world.drainEvents(), [], 'queue is cleared');
 });
 
