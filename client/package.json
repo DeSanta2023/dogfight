@@ -1,0 +1,20 @@
+{
+  "name": "@dogfight/client",
+  "private": true,
+  "version": "0.4.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test",
+    "determinism": "node scripts/determinism.mjs",
+    "this-bug": "node scripts/this-bug.mjs",
+    "prototypes": "node scripts/prototype-chain.mjs",
+    "puzzles": "node scripts/puzzles.mjs",
+    "load-timing": "node scripts/load-timing.mjs"
+  },
+  "devDependencies": {
+    "vite": "^8.3.5"
+  }
+}

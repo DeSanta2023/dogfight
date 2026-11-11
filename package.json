@@ -1,28 +1,39 @@
 {
   "name": "dogfight",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.4.0",
   "type": "module",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "engines": {
+    "node": ">=22.9"
+  },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
+    "dev": "npm run dev --workspace client",
+    "dev:server": "npm run dev --workspace server",
+    "build": "npm run build --workspace client",
+    "start": "npm run start --workspace server",
+    "test": "npm test --workspaces",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "determinism": "node scripts/determinism.mjs",
-    "test": "node --test",
-    "this-bug": "node scripts/this-bug.mjs",
-    "prototypes": "node scripts/prototype-chain.mjs",
-    "puzzles": "node scripts/puzzles.mjs",
-    "load-timing": "node scripts/load-timing.mjs"
+    "determinism": "npm run determinism --workspace client",
+    "this-bug": "npm run this-bug --workspace client",
+    "prototypes": "npm run prototypes --workspace client",
+    "puzzles": "npm run puzzles --workspace client",
+    "load-timing": "npm run load-timing --workspace client",
+    "blocking-demo": "npm run blocking-demo --workspace server",
+    "error-crash": "npm run error-crash --workspace server",
+    "rss-experiment": "npm run rss-experiment --workspace server",
+    "event-loop-order": "npm run event-loop-order --workspace server"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.14.0",
-    "prettier": "^3.9.10",
-    "vite": "^8.3.5"
+    "prettier": "^3.9.10"
   }
 }

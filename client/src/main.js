@@ -12,6 +12,8 @@ import { createHud } from './hud.js';
 import { Lobby } from './lobby.js';
 import { mountLobbyView } from './ui/lobby-view.js';
 import { mountRetryView } from './ui/retry-view.js';
+import { mountRoomView } from './ui/room-view.js';
+import { RoomSession } from './net/session.js';
 import {
   describeError,
   fetchJson,
@@ -49,6 +51,7 @@ const sequential = params.get('load') === 'sequential';
 const canvasApi = createCanvas(document.getElementById('game'));
 const { ctx, view } = canvasApi;
 const overlay = document.getElementById('overlay');
+const roomPanel = document.getElementById('room-panel');
 
 const input = autopilot
   ? { isDown: (code) => code === 'ArrowUp', justPressed: () => false, endStep: () => {} }
@@ -70,6 +73,8 @@ let simTime = 0;
 let autopilotResult = '';
 let detachGame = () => {};
 let unmount = () => {};
+let session = null; // RoomSession while joining or in a room
+let roomUnmount = () => {};
 
 // ---- game -----------------------------------------------------------------------------------
 // The sim never calls Math.random(); the seed is chosen HERE, at the edge of the program.
@@ -175,7 +180,8 @@ async function boot() {
         : null;
     window.dogfightAssets = { ...loadReport, arena: assets.arena }; // for the DevTools console
 
-    showLobby(assets.arena);
+    defaultArena = assets.arena ?? {};
+    showLobby();
   } catch (error) {
     phase = 'failed';
     const what = isAbortError(error)
@@ -193,7 +199,9 @@ async function boot() {
 let lobby = null;
 let firstRoomsRequest = true;
 
-function showLobby(defaultArena) {
+let defaultArena = {};
+
+function showLobby(notice = '') {
   phase = 'lobby';
   if (!lobby) {
     lobby = new Lobby({
@@ -206,28 +214,86 @@ function showLobby(defaultArena) {
           : 'api/rooms';
       },
     });
-    lobby.addEventListener('joined', ({ detail }) => {
-      room = { ...detail.room, arena: { ...defaultArena, ...detail.room.arena } };
-      callsign = detail.name;
-      unmount();
-      startGame();
-      phase = 'playing';
-    });
+    lobby.addEventListener('joined', ({ detail }) => enterRoom(detail.room, detail.name));
   }
   const failed = loadReport.failed.map(
     ({ id, error }) => `${id}: ${describeError(error)}`,
   );
   unmount = mountLobbyView(overlay, lobby, {
-    notice: failed.length ? `Started with fallbacks — ${failed.join(', ')}` : '',
+    notice:
+      notice || (failed.length ? `Started with fallbacks — ${failed.join(', ')}` : ''),
   });
   lobby.start();
 }
 
-function leaveGame() {
+// ---- room: the lobby's Join opens a WebSocket (Lab 04); the game starts when the SERVER says
+// "joined". Coordinates are not sent yet (Lab 05): the server only knows who is in the room.
+function wsUrl() {
+  const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
+  return `${scheme}://${location.host}/ws`;
+}
+
+function enterRoom(chosen, name) {
+  callsign = name;
+  unmount();
+  phase = 'joining';
+  session = new RoomSession({ url: wsUrl() });
+  const current = session;
+  unmount = mountRetryView(overlay, {
+    title: `Joining ${chosen.name}…`,
+    detail: 'Connecting to the server.',
+    buttonLabel: 'Cancel',
+    onRetry: () => abandonRoom(),
+  });
+
+  current.addEventListener('joined', ({ detail }) => {
+    if (session !== current) return;
+    if (phase === 'playing') return; // a re-join after a reconnect: the game keeps running
+    unmount();
+    room = { ...detail.room, arena: { ...defaultArena, ...detail.room.arena } };
+    startGame();
+    phase = 'playing';
+    roomUnmount = mountRoomView(roomPanel, current);
+  });
+  current.addEventListener('rejected', ({ detail }) => {
+    if (session !== current) return;
+    abandonRoom(`Could not join ${chosen.name}: ${detail.message}`);
+  });
+  current.addEventListener('ended', ({ detail }) => {
+    if (session !== current) return;
+    abandonRoom(`Disconnected: ${detail.reason}`);
+  });
+  // While the first connect is retried, tell the player (the panel above) what is going on.
+  current.addEventListener('status', ({ detail }) => {
+    if (session !== current || phase !== 'joining' || detail.state !== 'reconnecting')
+      return;
+    unmount();
+    unmount = mountRetryView(overlay, {
+      title: `Joining ${chosen.name}…`,
+      detail: `Server not reachable. Trying again${detail.delayMs ? ` in ${(detail.delayMs / 1000).toFixed(1)} s` : ''}.`,
+      buttonLabel: 'Cancel',
+      onRetry: () => abandonRoom(),
+    });
+  });
+  current.join(chosen.id, name);
+}
+
+/** Leave the room (if any), close the socket, and show the lobby again. */
+function abandonRoom(notice = '') {
+  const old = session;
+  session = null;
+  old?.leave();
+  roomUnmount();
+  roomUnmount = () => {};
   detachGame();
   detachGame = () => {};
   game = null;
-  showLobby();
+  unmount();
+  showLobby(notice);
+}
+
+function leaveGame() {
+  abandonRoom();
 }
 
 // ---- keyboard shortcuts outside the simulation ------------------------------------------------
@@ -291,7 +357,12 @@ function render(alpha, stats) {
     `mode       ${experiment ?? 'normal (rAF + fixed step)'}`,
     `alpha      ${alpha.toFixed(2)}   dpr ${view.dpr}   entities ${game.world.size}`,
   ];
-  if (room) extra.push(`room       ${room.name} · ${callsign}`);
+  if (room) {
+    const n = session?.players.length ?? 1;
+    extra.push(
+      `room       ${room.name} · ${callsign} · ${n} in room · ${session?.state ?? 'local'}`,
+    );
+  }
   if (!experiment && !autopilot) {
     extra.push(
       `assets     ${assetNote} · ${loadReport.concurrent ? 'concurrent' : 'sequential'} ${loadReport.elapsedMs.toFixed(0)} ms`,
@@ -325,5 +396,8 @@ if (import.meta.env?.DEV)
     },
     get phase() {
       return phase;
+    },
+    get session() {
+      return session;
     },
   };

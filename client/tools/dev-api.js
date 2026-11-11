@@ -1,22 +1,17 @@
 import { existsSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
 import { resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 /**
- * Vite plugin: a tiny stand-in for the real server that arrives in Lab 04.
+ * Vite plugin: dev-only helpers for the Lab 03 loading experiments. (Lab 04 moved the real API
+ * to server/: /api and /ws are proxied to it, see vite.config.js.)
  *
- *   GET /api/rooms     the room list, read from public/api/rooms.json. The `players` counts
- *                      drift over time so that the lobby's periodic refresh is visible.
  *   any URL ?delay=N   wait N ms before answering. Used to simulate a slow network
  *                      (loading-bar demo, sequential vs concurrent timings, timeouts).
- *   /assets/*, /api/*  a file that does not exist is a real 404. Without this Vite's SPA fallback
+ *   /assets/*          a file that does not exist is a real 404. Without this Vite's SPA fallback
  *                      answers 200 with index.html, and "a missing sprite" would never be a 404.
  *
  * Works in `vite` (dev) and `vite preview`. It is not part of the game bundle.
  */
-const ROOMS_FILE = fileURLToPath(new URL('../public/api/rooms.json', import.meta.url));
-
 function sleep(ms, req) {
   return new Promise((resolve) => {
     const timer = setTimeout(resolve, ms);
@@ -25,13 +20,6 @@ function sleep(ms, req) {
       resolve();
     });
   });
-}
-
-/** players = base + a small, time-dependent wobble, never above maxPlayers (full rooms stay full). */
-function livePlayers(room, index, now = Date.now()) {
-  if (room.players >= room.maxPlayers) return room.players;
-  const span = Math.min(2, room.maxPlayers - room.players);
-  return room.players + ((Math.floor(now / 3000) + index) % (span + 1));
 }
 
 const handler = (staticDir) => async (req, res, next) => {
@@ -49,30 +37,17 @@ const handler = (staticDir) => async (req, res, next) => {
   if (delay > 0) await sleep(Math.min(delay, 30_000), req);
   if (res.destroyed || req.destroyed) return;
 
-  if (url.pathname !== '/api/rooms') {
-    if (isMissingStatic(url.pathname, staticDir)) {
-      res.statusCode = 404;
-      res.setHeader('Content-Type', 'text/plain');
-      return res.end(`Not found: ${url.pathname}`);
-    }
-    return next();
+  if (isMissingStatic(url.pathname, staticDir)) {
+    res.statusCode = 404;
+    res.setHeader('Content-Type', 'text/plain');
+    return res.end(`Not found: ${url.pathname}`);
   }
-
-  try {
-    const { rooms } = JSON.parse(await readFile(ROOMS_FILE, 'utf8'));
-    const live = rooms.map((room, i) => ({ ...room, players: livePlayers(room, i) }));
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Cache-Control', 'no-store');
-    res.end(JSON.stringify({ rooms: live }));
-  } catch (error) {
-    res.statusCode = 500;
-    res.end(JSON.stringify({ error: String(error.message) }));
-  }
+  return next();
 };
 
-/** /assets/* and /api/* must be real files (or the one live endpoint), otherwise 404. */
+/** /assets/* must be a real file, otherwise 404. */
 function isMissingStatic(pathname, staticDir) {
-  if (!pathname.startsWith('/assets/') && !pathname.startsWith('/api/')) return false;
+  if (!pathname.startsWith('/assets/')) return false;
   let relative;
   try {
     relative = decodeURIComponent(pathname);

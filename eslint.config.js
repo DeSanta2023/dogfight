@@ -3,10 +3,10 @@ import globals from 'globals';
 import prettier from 'eslint-config-prettier';
 
 export default [
-  { ignores: ['dist/', 'node_modules/'] },
+  { ignores: ['**/dist/', '**/node_modules/', 'server/logs/'] },
   js.configs.recommended,
   {
-    files: ['src/**/*.js'],
+    files: ['client/src/**/*.js'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -14,7 +14,13 @@ export default [
     },
   },
   {
-    files: ['scripts/**/*.mjs', 'test/**/*.js', 'tools/**/*.js', '*.config.js'],
+    files: [
+      '**/scripts/**/*.mjs',
+      '**/test/**/*.js',
+      'client/tools/**/*.js',
+      '**/*.config.js',
+      'server/**/*.js',
+    ],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -23,7 +29,7 @@ export default [
   },
   {
     // The puzzles run both in Node (npm test) and in the browser (puzzles/index.html).
-    files: ['puzzles/**/*.js'],
+    files: ['client/public/**/*.js'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',

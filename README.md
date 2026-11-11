@@ -1,56 +1,305 @@
 # Dogfight
 
 A multiplayer-ready space dogfight built step by step in a JavaScript course (vanilla JS, ES
-modules, Vite; the server comes in later labs).
+modules, Vite on the client, Node + `ws` on the server).
 
-| Lab | Topic                                    | Tag      | Where to look                              |
-| --- | ---------------------------------------- | -------- | ------------------------------------------ |
-| 01  | Event loop, fixed-timestep game loop     | `lab-01` | [Lab 01](#lab-01--the-game-loop)           |
-| 02  | Objects, prototypes, `this`, composition | `lab-02` | [Lab 02](#lab-02--the-entity-model)        |
-| 03  | Promises, async/await, loading, lobby    | `lab-03` | [Lab 03](#lab-03--asynchronous-javascript) |
+| Lab | Topic                                     | Tag      | Where to look                                             |
+| --- | ----------------------------------------- | -------- | --------------------------------------------------------- |
+| 01  | Event loop, fixed-timestep game loop      | `lab-01` | [Lab 01](#lab-01--the-game-loop)                          |
+| 02  | Objects, prototypes, `this`, composition  | `lab-02` | [Lab 02](#lab-02--the-entity-model)                       |
+| 03  | Promises, async/await, loading, lobby     | `lab-03` | [Lab 03](#lab-03--asynchronous-javascript)                |
+| 04  | Node.js: EventEmitter, streams, WebSocket | `lab-04` | [Lab 04](#lab-04--nodejs-eventemitter-streams-websockets) |
 
 ## Run
 
 ```bash
-nvm use              # Node 22 (see .nvmrc)
-npm install
-npm run dev          # open the printed URL
-npm test             # 84 tests (node:test), no browser needed
+nvm use              # Node 22.9 or newer (see .nvmrc)
+npm install          # installs both workspaces (client/, server/) from the root
+
+# development: TWO terminals
+npm run dev:server   # terminal 1: game server on http://localhost:3000 (restarts on file change)
+npm run dev          # terminal 2: Vite on http://localhost:5173, proxies /api and /ws to the server
+
+# production-like: ONE process serves the built client and the API/WebSocket
+npm run build        # client -> client/dist
+npm start            # http://localhost:3000
+
+npm test             # 170 tests (node:test) in both workspaces, no browser needed
 npm run lint         # ESLint (flat config) + eslint-config-prettier
 npm run format       # Prettier
-npm run determinism  # Lab 01 experiment 3, headless
-npm run this-bug     # Lab 02: the `this` bug and its three fixes, printed
-npm run prototypes   # Lab 02: delegation / `this` / Map-vs-object / prototype chain
-npm run puzzles      # Lab 03: four microtask/task ordering puzzles (5th: /puzzles.html)
-npm run load-timing  # Lab 03: sequential vs concurrent loading
 ```
 
-Controls: **← → / A D** rotate, **↑ / W** thrust, **Space** fire, **R** restart. The HUD at the top
-left shows steps/s, frames/s, frame time and CPU work per frame (Lab 01); the one at the top right
-shows score, hp, deaths and active pickup effects. Add `?seed=123` to the URL to get the same
-asteroids and pickups every run.
+Experiments (each prints its result; the README quotes them):
+
+```bash
+npm run determinism       # Lab 01: fixed vs variable timestep, headless
+npm run this-bug          # Lab 02: the `this` bug and its three fixes
+npm run prototypes        # Lab 02: delegation / `this` / Map-vs-object / prototype chain
+npm run puzzles           # Lab 03: four microtask/task ordering puzzles (5th: /puzzles.html)
+npm run load-timing       # Lab 03: sequential vs concurrent loading
+npm run event-loop-order  # Lab 04: nextTick / promise / timeout / immediate
+npm run blocking-demo     # Lab 04: a 300 ms handler freezes every client
+npm run error-crash       # Lab 04: 'error' without a listener, unhandled rejection
+npm run rss-experiment    # Lab 04: 200 MB log, slow client, rss over time (writes docs/rss.*)
+```
+
+Controls: **← → / A D** rotate, **↑ / W** thrust, **Space** fire, **R** restart, **Enter** chat,
+**Esc** back to the lobby, **M** mute. The HUD at the top left shows steps/s, frames/s, frame time
+and CPU work per frame (Lab 01); the one at the top right shows score, hp, deaths and active pickup
+effects. Add `?seed=123` to the URL to get the same asteroids and pickups every run.
 
 ## Structure
 
 ```
-index.html                  <canvas> + <script type="module">
-src/main.js                 wires loop + input + Game + rendering; reads URL switches
-src/loop.js                 createLoop({ step, simulate, render }) — rAF + clamped accumulator
-src/input.js                createInput(target) — closure over key state (isDown / justPressed)
-src/sim/                    the simulation: NO DOM, NO canvas, NO Math.random — runs in Node
-  vector.js                 Vector2: immutable, pure methods
-  entity.js                 Entity base class (private static #nextId, composed behaviors)
-  ship.js                   Ship extends Entity; Lab 01's pure integrate() lives here too
-  entities.js               Bullet, Asteroid, Pickup, Explosion (all extend Entity)
-  behaviors.js              homing(): a composed capability, not a class
-  world.js                  World over Map<id, Entity>: spawn / despawn / iterator / *ofKind / step
-  collision.js              findCollisions(world) -> [a, b] pairs (swappable system)
-  game.js                   match rules: score, respawn, refills, pickups (seeded rng)
-  arena.js, rng.js          arena size + edge rules; seeded PRNG closure
-src/render/                 canvas, interpolation, drawing (reads sim state, never writes it)
-test/                       84 tests (sim, loader, lobby, events)
-scripts/                    determinism.mjs (Lab 01), this-bug.mjs, prototype-chain.mjs (Lab 02)
+package.json                npm workspaces: client, server; one lockfile, one ESLint/Prettier setup
+client/                     everything that runs in the browser (Labs 01-03, plus the socket in Lab 04)
+  index.html, vite.config.js
+  src/main.js               wires loop + input + Game + rendering + lobby + room session
+  src/loop.js, input.js     rAF + clamped accumulator; keyboard as a closure
+  src/sim/                  the simulation: NO DOM, NO canvas, NO Math.random, no audio
+  src/render/               canvas, interpolation, sprites, loading screen
+  src/assets/               loader.js (fetch/retry/abort/loadAll), chaos.js (failure injection)
+  src/net/connection.js     WebSocket wrapper: send queue + reconnect with jittered backoff   (Lab 04)
+  src/net/session.js        RoomSession: roster, chat, join/rejoin protocol, events            (Lab 04)
+  src/lobby.js, src/ui/     lobby model (EventTarget) and the DOM for lobby, room panel, errors
+  test/, scripts/, tools/   100 tests; experiments; dev helper plugin (?delay=, real 404s)
+server/                     Node, ESM, one dependency (ws)                                      (Lab 04)
+  index.js                  entry: config, logger, signals (SIGINT/SIGTERM), last-resort handlers
+  app.js                    createApp(): http + ws + rooms + match logs; start()/stop() (testable)
+  config.js                 the ONLY reader of process.env; validates every value at start-up
+  http.js                   node:http routes, static files with a traversal guard, body limit
+  rooms.js                  Room / RoomManager extend EventEmitter (no sockets inside)
+  protocol.js               the wire protocol and server-side validation of every message
+  ws.js                     WebSocket lifecycle: join timeout, heartbeat, rate limit, slow clients
+  ratelimit.js              token bucket
+  log/matchlog.js, replay.js  NDJSON Transform -> file; replay as async generator / HTTP stream
+  scripts/, test/           four experiments; 70 tests (unit + real sockets + real processes)
+docs/                       rss.svg + rss.csv (Lab 04 graph)
 ```
+
+## Lab 04 — Node.js: EventEmitter, streams, WebSockets
+
+The game now has a **server**. It keeps the list of rooms, lets players join and leave, relays chat,
+writes every room's history to disk and shuts down cleanly. Ship coordinates are _not_ sent yet
+(Lab 05): the server only knows who is in which room. The client from Labs 01-03 stays as it was;
+its lobby now reads the real `GET /api/rooms`, and **Join** opens a WebSocket.
+
+```
+browser ── GET /api/rooms ─────────────┐
+   │                                   ▼
+   │  ws://…/ws  (JSON, v1)      ┌── server/index.js ── config.js (env, validated)
+   └────────────────────────────►│     app.js ── http.js   routes + static files
+                                 │             └ ws.js     sockets: join timeout, heartbeat, limits
+                                 │             └ rooms.js  Room / RoomManager (EventEmitter)
+                                 └─ rooms emit events ──► ws.js (broadcast) + log/matchlog.js (NDJSON file)
+```
+
+### Try it (two windows)
+
+```bash
+npm run dev:server        # terminal 1
+npm run dev               # terminal 2, open http://localhost:5173 in TWO windows
+```
+
+Pick a callsign and a room in both windows; each sees the other in the roster, chat with **Enter**,
+**Esc** goes back to the lobby. To see reconnect: stop the server (Ctrl+C), watch the yellow
+"Connection lost. Reconnecting in …" banner, type a message (it is queued), start the server again.
+Everything the server wrote is in `server/logs/*.ndjson`; `GET /api/replays` lists them.
+
+### What was built, milestone by milestone
+
+**M1 - HTTP, config, shutdown** (`server/http.js`, `config.js`, `index.js`)
+
+- Plain `node:http`, no framework. `GET /health`; `GET`/`POST /api/rooms` (JSON validated field by
+  field, 400 lists every problem; 415 wrong content type; 413 body over `MAX_BODY_BYTES`; 405 with
+  `Allow`). Everything else under `/api/` is a JSON 404. The built client is served from
+  `client/dist` with correct MIME types.
+- **Path traversal**: `..` (also `%2e%2e`, double-encoded, `\`, NUL) is rejected _before_ the disk
+  is touched, and the resolved path must still start with the static root. Tested with raw sockets,
+  because `fetch` normalises `..` away before sending.
+- **Config**: `config.js` is the only file that reads `process.env`. Every value has a parser and a
+  range; a bad value stops the server at start-up with _all_ problems listed (`PORT: "30o0" is not a
+whole number`), not at 3 a.m. `npm run dev:server` uses `--env-file`, `npm start` an optional
+  `server/.env`.
+- **Graceful shutdown**: SIGINT/SIGTERM -> stop accepting, close every socket with 1001, close rooms,
+  wait until every match log is flushed, exit with code **0** (tested by spawning the real process).
+  A second signal exits immediately.
+
+**M2 - rooms, protocol, WebSockets** (`rooms.js`, `protocol.js`, `ws.js`, `client/src/net/`)
+
+- `Room extends EventEmitter` and knows nothing about sockets: `join`/`leave`/`chat` change the
+  roster and _emit_ `joined`, `left`, `chat`, `empty`. `RoomManager` deletes a room when it becomes
+  empty (a room created over HTTP that nobody joins is removed after `ROOM_IDLE_MS`). `ws.js`,
+  the match log and the tests are all just listeners.
+- **Protocol v1** (`protocol.js`), JSON text frames `{ "v": 1, "type": …, … }`:
+
+  | direction | type      | fields                 | notes                                                  |
+  | --------- | --------- | ---------------------- | ------------------------------------------------------ |
+  | c -> s    | `join`    | `room`, `name`         | must come within 5 s of connecting                     |
+  | c -> s    | `chat`    | `text` (1-300)         |                                                        |
+  | c -> s    | `leave`   |                        | leaves the room, socket stays open                     |
+  | s -> c    | `welcome` | `id`, `limits`         | right after connecting                                 |
+  | s -> c    | `joined`  | `room` (with arena), … | the client starts the game now                         |
+  | s -> c    | `roster`  | `players`              | someone came or went                                   |
+  | s -> c    | `chat`    | `from`, `text`, `at`   |                                                        |
+  | s -> c    | `error`   | `code`, `message`      | recoverable (room full, name taken): socket stays open |
+
+- **Every incoming message is validated** (`parseClientMessage`): binary frame, size in _bytes_,
+  JSON syntax, object shape, version, `type` (looked up with `Object.hasOwn`, so `"constructor"` is
+  not a type), then each field. Unknown type / wrong shape -> close **1008**; not JSON -> **1007**;
+  binary -> **1003**; too big -> **1009** (set by `ws` itself through `maxPayload` before the message
+  is even parsed). Extra fields are dropped, so a client cannot smuggle `admin: true` through.
+- **Join timeout** 5 s -> close 4001. **Heartbeat**: one timer pings everybody every 15 s; a socket
+  that missed two pongs is `terminate()`d (a closed laptop lid is invisible to TCP for minutes).
+- Every socket gets `ws.on('error', …)` as its **first** listener (see "crash and fix").
+- **Client** (`net/connection.js`): a `WebSocket` wrapper with a **send queue** (messages written
+  while offline go out, in order, after the next connect; capped at 50, oldest dropped) and
+  **reconnect** with exponential backoff and jitter (`500 ms * 2^n`, capped at 15 s, "equal
+  jitter" so the delay is never 0 and a restarted server is not hit by everyone at once). Closes that
+  mean "you sent something wrong" (1003/1007/1008/1009) are _not_ retried. `net/session.js` re-sends
+  `join` after every reconnect and copes with the server still holding the old socket
+  (`name_taken` -> retry, instead of an error). Typing in the chat box never steers the ship.
+- The DOM is built with `textContent` only: `<img src=x onerror=alert(1)>` in chat is shown as text.
+
+**M3 - match log as a stream pipeline** (`log/matchlog.js`, `log/replay.js`)
+
+- `events -> Transform (objects in, "line\n" out) -> fs.WriteStream`, joined by `stream.pipeline`.
+  Every room gets a log (`room_created`, `joined`, `left`, `chat`, `room_closed`), flushed when the
+  room is removed or the server stops. `write()` returns `false` when the buffer is full;
+  `drained()` waits for the file (the experiment below hit that 3541 times for 220 MB).
+- **Replay** is the same idea backwards: `createReadStream -> parser Transform (lines -> objects)`,
+  exposed as an **async generator** (`for await (const event of replayEvents(file))`), and over HTTP as
+  `GET /api/replays/:id`, which is just `pipeline(createReadStream(file), res)`. A corrupt line makes
+  the iterator throw instead of hanging.
+
+**M4 - abuse controls** (`ratelimit.js`, `ws.js`, `http.js`)
+
+| Threat                       | Control                                                                                         | Where               |
+| ---------------------------- | ----------------------------------------------------------------------------------------------- | ------------------- |
+| message flood                | token bucket, 10 msg/s, burst 20 -> close 1008                                                  | `ratelimit.js`      |
+| giant frame                  | `maxPayload` 2 KB (ws closes with 1009)                                                         | `ws.js`             |
+| giant HTTP body              | `Content-Length` checked early, running total checked too; 413; at most `limit` bytes ever held | `http.js`           |
+| silent / dead connection     | join timeout 5 s, heartbeat, 2 missed pongs                                                     | `ws.js`             |
+| too many connections / rooms | 200 sockets (close 1013), 50 rooms, room size, unique callsign                                  | `ws.js`, `rooms.js` |
+| slow reader (2G phone)       | `bufferedAmount`: above 64 KB skip droppable chat, above 256 KB terminate                       | `safeSend`          |
+| path traversal               | rejected before the disk, plus "still inside the root" check                                    | `http.js`           |
+| slow-loris headers           | `headersTimeout` 10 s                                                                           | `app.js`            |
+
+### Event loop
+
+`npm run event-loop-order` (Node 22, Linux):
+
+```
+1. sync > nextTick > promise > queueMicrotask > setImmediate > setTimeout
+2. setTimeout(0) vs setImmediate from the MAIN module, 200 fresh processes:
+   timeout first 9 times, immediate first 191 times  -> not deterministic
+3. the same pair inside an I/O callback, 200 runs: immediate first 200 of 200 -> deterministic
+```
+
+`nextTick` and promise callbacks run between phases, before the loop moves on; `nextTick` is drained
+before promise jobs. From the main module the order of `setTimeout(0)` and `setImmediate` depends on
+whether 1 ms had passed by the time the loop started. Inside an I/O callback (poll phase) the next
+phase is _check_, where `setImmediate` runs, so it always wins.
+
+**What if an HTTP handler takes 300 ms of CPU?** `GET /api/slow` (dev only, `ENABLE_SLOW_ROUTE`)
+spins for 300 ms. `npm run blocking-demo`: 8 clients ask `GET /health` every 50 ms for 3 s, from a
+_separate process_ (clients in the server's own thread would freeze with it and see nothing):
+
+| run                                          | requests | p50    | p99        | max        |
+| -------------------------------------------- | -------- | ------ | ---------- | ---------- |
+| quiet                                        | 471      | 0.9 ms | 16.4 ms    | 19.1 ms    |
+| a client also calls the blocking route (4 x) | 336      | 1.6 ms | **279 ms** | **280 ms** |
+| same 300 ms as `await sleep(300)`            | 456      | 1.7 ms | 45 ms      | 57 ms      |
+
+JavaScript runs on one thread, so while a handler computes, _nobody_ is served - not `/health`, not
+chat, not the heartbeat (a long enough freeze makes healthy clients look dead and get terminated).
+Waiting is free (`await`); computing is not. CPU-heavy work belongs in a worker thread or another
+process. (The 3 s runs are short, so p99 of the last two rows is noisy; the maximum of the blocking
+row is the point.)
+
+### Backpressure: memory while a slow client downloads a 200 MB log
+
+`npm run rss-experiment` writes a 221 MB log through the Transform pipeline (waiting for `drain`
+3541 times; rss stayed at 78-103 MB), then serves it to a client that reads 25 MB/s, two ways, each in
+its own process, rss sampled every 100 ms:
+
+![rss while a 200 MB log is downloaded](docs/rss.svg)
+
+| way                                     | time  | rss start -> max     | after the first second                 |
+| --------------------------------------- | ----- | -------------------- | -------------------------------------- |
+| `pipeline(createReadStream(file), res)` | 7.5 s | 54.9 -> **101.3** MB | flat (95.7 -> 101.3, +5.6 MB in 6.5 s) |
+| `res.end(await readFile(file))`         | 8.2 s | 54.8 -> **321.8** MB | flat at the file size + overhead       |
+
+The streaming curve is **flat**: the first second is process warm-up (about 40 MB: V8 heap, HTTP
+buffers), then it moves by a few MB while 200 MB passes through. The naive curve jumps by the size
+of the file before the first byte leaves and stays there, _per download_: ten slow clients would
+need 2 GB. `pipeline` does the bookkeeping: `res.write()` returning `false` pauses the file reader
+until `drain`, so at most one 64 KB chunk plus the socket buffers are in flight, and if the client
+disconnects, both streams are destroyed and the file descriptor is closed. (Raw data in
+`docs/rss.csv`; the client of the experiment lives in the same process as the server's end of the
+socket, which is why the absolute numbers include a little client overhead.)
+
+### Crash and fix: `'error'` without a listener
+
+`npm run error-crash` runs each case in a child process:
+
+```
+# emit('error') with NO listener           exit code 1   Error: socket exploded
+# emit('error') WITH a listener            exit code 0   handled: socket exploded / still alive
+# rejected promise nobody awaits           exit code 1   Error: disk full
+# …with a process 'unhandledRejection'     exit code 1   logged: disk full
+```
+
+`EventEmitter.emit('error')` is special: with no `'error'` listener it **throws** the error from
+`emit()`, and a throw nobody catches ends the process. Sockets, streams and rooms are all emitters,
+so one flaky client (reset connection, bad frame) whose socket has no `'error'` handler would take
+every room down. The Promise twin is a rejected promise nobody awaits: since Node 15 that is also a
+crash. What the server does about it:
+
+- `ws.on('error', …)` is the first listener of every socket (`server/ws.js`) and there is a test that
+  emits an error on a live socket and checks the server keeps working;
+- every `ws.send` has a callback, and a failed send terminates only that socket;
+- `pipeline` is used instead of bare `.pipe()` (which does not forward errors or clean up); the match
+  log's `done` promise always has a `.catch`;
+- as the last line of defence `index.js` logs `uncaughtException` / `unhandledRejection` and exits
+  with 1: after an unknown exception the process state is unknown, so the honest move is to let a
+  supervisor restart it, not to keep serving.
+
+**Bugs found while building this (and kept as tests)**
+
+- The shutdown timers were `unref()`ed, so after the HTTP server closed there was nothing left to keep
+  the process alive: it exited with code 0 _in the middle of_ flushing the logs and never printed
+  "bye". Those two timers must keep the loop alive. (`test/process.test.js`.)
+- `readBody` destroyed the request on an oversized upload, which also killed the socket, so the client
+  got a connection error instead of `413`. Now it stops collecting at the limit, answers 413 and closes
+  the connection afterwards. (`test/http.test.js`, the chunked-upload test.)
+- `fetch` and the browser normalise `..` out of a URL, so traversal tests that use them prove nothing;
+  they send raw request lines through `net.connect`.
+
+### Tests
+
+`npm test`: **170** (client 100, server 70). The server tests use no mocks for the interesting
+parts: a real server on port 0 in a temp directory, real `ws` clients, and real child processes for
+signals and bad config. Highlights: validation of every kind of bad message and the close code it
+earns; join timeout (4001), heartbeat with a client that never pongs, rate limit, `maxPayload`,
+connection cap, name taken / room full leave the socket open, an emitted socket `'error'` does not
+crash, graceful shutdown (1001 for clients, complete log on disk, exit code 0 for SIGINT and
+SIGTERM), config errors listed together, path traversal over raw sockets, chunked body cap, log
+round-trip and replay of lines cut at arbitrary chunk boundaries. The client tests drive
+`Connection`/`RoomSession` with a fake WebSocket: queue order, handshake first, backoff values with
+a fixed random, no retry for 1008, retry for 1001/1006, stale events of a replaced socket ignored.
+
+### Defence (5 minutes)
+
+1. `npm run build && npm start`, open `http://localhost:3000` in two windows; join the same room;
+   chat both ways; Esc in one window and watch the roster change in the other.
+2. Ctrl+C in the server terminal: it prints `shutting down`, `bye`, exit code 0; the log file is in
+   `server/logs`.
+3. Show `docs/rss.svg` and say why the green line is flat; show `npm run error-crash`.
+
+### Not done (stretch goals)
+
+Gzip of the log, an SSE spectator endpoint and a Fastify port were not attempted.
 
 ## Lab 03 — asynchronous JavaScript
 
@@ -58,6 +307,9 @@ The game no longer starts instantly. It **loads** (manifest → sprites, sounds,
 real progress bar), shows a **lobby** (room list polled from `/api/rooms`), and only then starts a
 local match with the chosen room's arena settings. Everything that waits goes through Promises /
 `async`/`await`, and every wait can be cancelled.
+
+> Since Lab 04 the browser code lives in `client/`: read every path in this section as
+> `client/<path>`. `/api/rooms` is no longer a static JSON; it comes from the real server.
 
 ### Flow
 
@@ -70,16 +322,16 @@ boot() ─ fetch manifest (withRetry) ─ loadAll (Promise.all, progress bar) �
 
 ### Where things are
 
-| File                         | Job                                                                           |
-| ---------------------------- | ----------------------------------------------------------------------------- |
-| `src/assets/loader.js`       | `fetchJson` (checks `ok`), `loadImage/Audio/Json`, `withRetry`, `loadAll`     |
-| `src/render/loading.js`      | canvas loading screen, eased real progress                                    |
-| `src/render/sprites.js`      | sprite sheet + atlas, `drawImage` with a source rect                          |
-| `src/audio.js`, `src/hud.js` | Web Audio and HUD; they **listen** to game events                             |
-| `src/lobby.js`               | `class Lobby extends EventTarget`: no DOM, tested in Node                     |
-| `src/ui/*.js`, `ui.css`      | the DOM for lobby and retry screens                                           |
-| `tools/dev-api.js`           | Vite plugin: `/api/rooms`, `?delay=N`, real 404s                              |
-| `public/assets/…`            | manifest, sprites, sounds, arena config (generated by `tools/make-assets.py`) |
+| File                         | Job                                                                               |
+| ---------------------------- | --------------------------------------------------------------------------------- |
+| `src/assets/loader.js`       | `fetchJson` (checks `ok`), `loadImage/Audio/Json`, `withRetry`, `loadAll`         |
+| `src/render/loading.js`      | canvas loading screen, eased real progress                                        |
+| `src/render/sprites.js`      | sprite sheet + atlas, `drawImage` with a source rect                              |
+| `src/audio.js`, `src/hud.js` | Web Audio and HUD; they **listen** to game events                                 |
+| `src/lobby.js`               | `class Lobby extends EventTarget`: no DOM, tested in Node                         |
+| `src/ui/*.js`, `ui.css`      | the DOM for lobby and retry screens                                               |
+| `tools/dev-api.js`           | Vite plugin: `?delay=N`, real 404s for `/assets/*` (rooms API moved to `server/`) |
+| `public/assets/…`            | manifest, sprites, sounds, arena config (generated by `tools/make-assets.py`)     |
 
 ### Decisions
 
@@ -168,7 +420,7 @@ Retry leads to the lobby in timeout/abort. Screenshots go in `docs/` when you ru
 
 - `?delay=N` on any URL slows that response (loading-bar demo).
 - Vite's SPA fallback answers `200 index.html` for missing files, so a "missing sprite" would not be
-  a 404. `dev-api.js` turns missing `/assets/*` and `/api/*` into real 404s.
+  a 404. `dev-api.js` turns missing `/assets/*` into real 404s.
 - A Vite `configureServer` hook must **not return** anything (a returned function is a post hook;
   `middlewares.use()` returns the app, which crashed startup).
 
@@ -537,4 +789,16 @@ through a wall).
 - [x] Sim emits events; audio/HUD listen (sim does not import audio)
 - [x] Lobby (`EventTarget`), polling, timeouts, abort on leave
 - [x] Five puzzles, failure gallery, sequential-vs-concurrent timings
-- [ ] Tag `lab-03`
+- [x] Tag `lab-03`
+
+**Lab 04**
+
+- [x] npm workspaces (`client/`, `server/`), one lockfile, env config validated at start-up
+- [x] `node:http` server: static files with traversal guard, `GET/POST /api/rooms`, `GET /health`, graceful shutdown (exit 0)
+- [x] `Room`/`RoomManager` on `EventEmitter`; empty rooms are deleted
+- [x] WebSocket protocol v1 with server-side validation, 5 s join timeout, heartbeat, `error` listener on every socket
+- [x] Client socket wrapper: send queue, reconnect with jittered backoff; chat and roster UI
+- [x] Match log: object-mode Transform -> NDJSON file via `pipeline`; replay as async generator and HTTP stream
+- [x] Rate limit, `maxPayload`, room/connection caps, slow-client policy (`bufferedAmount`)
+- [x] README: rss graph, event loop write-up (blocking demo), crash-and-fix, 170 tests
+- [ ] Tag `lab-04`

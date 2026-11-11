@@ -3,10 +3,10 @@
  * The canvas keeps drawing the background; this is a plain DOM overlay so the button is
  * focusable and works with the keyboard.
  */
-export function mountRetryView(root, { title, detail, onRetry }) {
+export function mountRetryView(root, { title, detail, onRetry, buttonLabel = 'Retry' }) {
   const button = Object.assign(document.createElement('button'), {
     type: 'button',
-    textContent: 'Retry',
+    textContent: buttonLabel,
   });
   button.addEventListener('click', onRetry, { once: true });
 

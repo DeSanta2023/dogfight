@@ -26,7 +26,11 @@ export function createInput(target) {
   const down = new Set();
   const pressed = new Set();
 
+  // Typing in the chat box must not steer the ship (or swallow the space bar).
+  const typing = (e) => ['INPUT', 'TEXTAREA'].includes(e.target?.tagName);
+
   target.addEventListener('keydown', (e) => {
+    if (typing(e)) return;
     if (GAME_KEYS.has(e.code)) e.preventDefault(); // stop arrows/space from scrolling the page
     if (!down.has(e.code)) pressed.add(e.code); // ignore OS key-repeat
     down.add(e.code);
