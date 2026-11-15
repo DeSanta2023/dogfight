@@ -1,7 +1,7 @@
 {
   "name": "@dogfight/server",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "scripts": {
     "dev": "node --watch --env-file=.env.example index.js",
@@ -10,9 +10,11 @@
     "blocking-demo": "node scripts/blocking-demo.mjs",
     "error-crash": "node scripts/error-crash.mjs",
     "rss-experiment": "node scripts/rss-experiment.mjs",
-    "event-loop-order": "node scripts/event-loop-order.mjs"
+    "event-loop-order": "node scripts/event-loop-order.mjs",
+    "tick-demo": "node scripts/tick-demo.mjs"
   },
   "dependencies": {
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "@dogfight/shared": "*"
   }
 }

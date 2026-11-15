@@ -73,7 +73,14 @@ export function createApp({ config, logger }) {
       config,
       rooms,
       logger,
-      getStats: () => ({ ws: live.ws?.stats, clients: live.ws?.clients.size }),
+      getStats: () => ({
+        ws: live.ws?.stats,
+        clients: live.ws?.clients.size,
+        // Lab 05: is the game loop really running at 30 steps per second?
+        matches: Object.fromEntries(
+          [...(live.ws?.matches ?? [])].map(([id, match]) => [id, match.stats()]),
+        ),
+      }),
     }),
   );
   // Slow-loris protection: a client must finish its request headers quickly.

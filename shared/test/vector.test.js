@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Vector2 } from '../src/sim/vector.js';
+import { Vector2 } from '../src/vector.js';
 
 test('Vector2 methods are pure: they return new vectors and never mutate', () => {
   const a = new Vector2(3, 4);

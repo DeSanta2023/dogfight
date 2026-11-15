@@ -31,6 +31,13 @@ export function createShip() {
   };
 }
 
+/**
+ * Experiment hook (Lab 05): a function applied to the result of every integrate() call, or null.
+ * Production code never sets it. The "add Math.random() to integrate" experiment sets it in the
+ * BROWSER only (?noise=), so prediction diverges from the server without editing this file.
+ */
+export const physicsHooks = { afterIntegrate: null };
+
 const anyDown = (input, codes) => codes.some((c) => input.isDown(c));
 
 /**
@@ -60,7 +67,7 @@ export function integrate(ship, input, dt) {
     vy *= k;
   }
 
-  return wrapPosition({
+  const next = wrapPosition({
     x: ship.x + vx * dt,
     y: ship.y + vy * dt,
     vx,
@@ -68,6 +75,7 @@ export function integrate(ship, input, dt) {
     angle,
     thrust,
   });
+  return physicsHooks.afterIntegrate ? physicsHooks.afterIntegrate(next) : next;
 }
 
 // ---------------------------------------------------------------------------
@@ -93,15 +101,27 @@ export class Ship extends Entity {
 
   thrust = 0;
   effects = new Map(); // effect name -> seconds left
+  slot; // which player flies it (0 offline); bullets remember it so nobody shoots themselves
+  inputSeq = 0; // sequence number of the input being applied (the server sets it; see Game)
 
   constructor({
     pos = new Vector2(ARENA.width / 2, ARENA.height / 2),
     angle = -Math.PI / 2,
     invulnerable = 0,
+    slot = 0,
   } = {}) {
     super({ kind: 'ship', pos, angle, radius: SHIP.radius, edge: 'wrap' });
     this.#hp = SHIP.maxHp;
     this.#invulnerable = invulnerable;
+    this.slot = slot;
+  }
+
+  get cooldown() {
+    return this.#cooldown;
+  }
+
+  get invulnerableLeft() {
+    return this.#invulnerable;
   }
 
   get hp() {
@@ -180,6 +200,8 @@ export class Ship extends Entity {
       angle: this.angle,
       ownerId: this.id,
     });
+    bullet.ownerSlot = this.slot;
+    bullet.fireSeq = this.inputSeq; // lets the shooter's browser match its own predicted bullet
     // Composition: the same `homing` behavior an asteroid uses, attached to a bullet.
     if (this.hasEffect('homing')) {
       bullet.addBehavior(homing({ targetKind: 'asteroid', turnRate: 3.2, range: 420 }));

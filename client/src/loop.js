@@ -11,12 +11,13 @@ const STATS_WINDOW_MS = 500;
 const MAX_FRAME_DELTA = 0.25; // seconds; clamp so a hitch never causes a "spiral of death"
 
 export function createLoop({
-  step = 1 / 60,
+  step: initialStep = 1 / 60,
   simulate,
   render,
   scheduler = 'raf', // 'raf' | 'interval' (experiment 2)
   fixedStep = true, // false = variable timestep (experiment 3)
 }) {
+  let step = initialStep; // Lab 05: the networked game runs at 30 steps/s, like the server
   let running = false;
   let rafId = 0;
   let intervalId = 0;
@@ -105,5 +106,19 @@ export function createLoop({
     clearInterval(intervalId);
   }
 
-  return { start, stop, stats };
+  /** Change the fixed step (seconds). Takes effect on the next frame. */
+  function setStep(seconds) {
+    step = seconds;
+    accumulator = 0;
+  }
+
+  return {
+    start,
+    stop,
+    stats,
+    setStep,
+    get step() {
+      return step;
+    },
+  };
 }

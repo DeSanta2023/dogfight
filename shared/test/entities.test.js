@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Entity } from '../src/sim/entity.js';
-import { Asteroid, Bullet, Explosion, Pickup } from '../src/sim/entities.js';
-import { Ship } from '../src/sim/ship.js';
-import { World } from '../src/sim/world.js';
-import { Vector2 } from '../src/sim/vector.js';
-import { createRng } from '../src/sim/rng.js';
+import { Entity } from '../src/entity.js';
+import { Asteroid, Bullet, Explosion, Pickup } from '../src/entities.js';
+import { Ship } from '../src/ship.js';
+import { World } from '../src/world.js';
+import { Vector2 } from '../src/vector.js';
+import { createRng } from '../src/rng.js';
 
 const STEP = 1 / 60;
 

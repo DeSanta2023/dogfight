@@ -1,5 +1,5 @@
-import { createRng } from '../sim/rng.js';
-import { Ship } from '../sim/ship.js';
+import { createRng } from '@dogfight/shared/rng.js';
+import { Ship } from '@dogfight/shared/ship.js';
 import { drawShip } from './draw.js';
 import { interpolateEntity } from './interpolate.js';
 

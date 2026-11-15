@@ -1,9 +1,10 @@
 {
   "name": "dogfight",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "workspaces": [
+    "shared",
     "client",
     "server"
   ],
@@ -27,7 +28,9 @@
     "blocking-demo": "npm run blocking-demo --workspace server",
     "error-crash": "npm run error-crash --workspace server",
     "rss-experiment": "npm run rss-experiment --workspace server",
-    "event-loop-order": "npm run event-loop-order --workspace server"
+    "event-loop-order": "npm run event-loop-order --workspace server",
+    "tick-demo": "npm run tick-demo --workspace server",
+    "wire-size": "npm run wire-size --workspace shared"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

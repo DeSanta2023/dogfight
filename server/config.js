@@ -49,6 +49,9 @@ const SPEC = {
   maxMissedPongs: ['MAX_MISSED_PONGS', '2', int(1, 10)],
   messagesPerSecond: ['MESSAGES_PER_SECOND', '10', int(1, 1000)],
   burst: ['MESSAGE_BURST', '20', int(1, 1000)],
+  // Game traffic has its own bucket: 30 inputs/s + 1 ping/s is normal, 90/s leaves room for jitter.
+  inputsPerSecond: ['INPUTS_PER_SECOND', '90', int(1, 10_000)],
+  inputBurst: ['INPUT_BURST', '180', int(1, 10_000)],
   maxRooms: ['MAX_ROOMS', '50', int(1, 10_000)],
   maxConnections: ['MAX_CONNECTIONS', '200', int(1, 100_000)],
   slowClientBytes: ['SLOW_CLIENT_BYTES', '65536', int(1, 100_000_000)],

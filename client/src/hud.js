@@ -1,4 +1,4 @@
-import { Ship } from './sim/ship.js';
+import { Ship } from '@dogfight/shared/ship.js';
 
 /**
  * The in-game HUD: score, hp, effects, respawn notice, and the things that react to events:
@@ -44,7 +44,13 @@ export function createHud() {
             born: performance.now(),
           }),
         hit: ({ detail }) => {
-          if (detail.target === 'ship') flashAt = performance.now();
+          // Offline: any hit on "the" ship. Online: other ships' hits do not flash MY screen;
+          // my own damage arrives as the separate 'ownhit' event.
+          if (detail.target === 'ship' && detail.own !== false)
+            flashAt = performance.now();
+        },
+        ownhit: () => {
+          flashAt = performance.now();
         },
       };
       for (const [type, listener] of Object.entries(listeners)) {

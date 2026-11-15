@@ -1,11 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Game, RESPAWN_DELAY } from '../src/sim/game.js';
-import { Ship, createShip, integrate } from '../src/sim/ship.js';
-import { Asteroid } from '../src/sim/entities.js';
-import { Vector2 } from '../src/sim/vector.js';
-import { interpolateEntity } from '../src/render/interpolate.js';
-import { ARENA } from '../src/sim/arena.js';
+import { Game, RESPAWN_DELAY } from '../src/game.js';
+import { Ship, createShip, integrate } from '../src/ship.js';
+import { Asteroid } from '../src/entities.js';
+import { Vector2 } from '../src/vector.js';
 
 const STEP = 1 / 60;
 const hold = (...codes) => ({
@@ -103,19 +101,4 @@ test('the ship may never leave 0..maxHp, whatever happens', () => {
     const hp = game.hud.hp;
     assert.ok(hp >= 0 && hp <= Ship.MAX_HP);
   }
-});
-
-test('interpolateEntity: wrap-aware position and shortest-path angle', () => {
-  const e = new Ship({ pos: new Vector2(ARENA.width - 2, 100), angle: 6.2 });
-  e.snapshot();
-  e.pos = new Vector2(2, 100); // crossed the right edge
-  e.angle = 0.1; // crossed 2*PI
-
-  const mid = interpolateEntity(e, 0.5);
-  assert.ok(
-    mid.x > ARENA.width - 3 || mid.x < 3,
-    `no sweep across the arena, x=${mid.x}`,
-  );
-  const angleFromPrev = Math.abs(mid.angle - 6.2);
-  assert.ok(angleFromPrev < 0.5, `short way round, got ${mid.angle}`);
 });

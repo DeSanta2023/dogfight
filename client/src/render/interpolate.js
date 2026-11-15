@@ -1,4 +1,4 @@
-import { ARENA, wrap, wrappedDelta, angleDelta } from '../sim/arena.js';
+import { ARENA, wrap, wrappedDelta, angleDelta } from '@dogfight/shared/arena.js';
 
 /**
  * Blend two consecutive simulation states for display. alpha in [0, 1].

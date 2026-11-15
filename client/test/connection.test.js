@@ -260,7 +260,9 @@ test('session: join is sent on open, "joined" fills the room state', () => {
   const log = events(s, 'joined', 'roster', 'chat');
   s.join('duel', 'Ace');
   last().open();
-  assert.deepEqual(last().sent, [{ v: 1, type: 'join', room: 'duel', name: 'Ace' }]);
+  assert.deepEqual(last().sent, [
+    { v: 1, type: 'join', room: 'duel', name: 'Ace', format: 'binary' },
+  ]);
   last().receive({ type: 'welcome', id: 'p1' });
   last().receive({
     type: 'joined',
@@ -316,7 +318,9 @@ test('session: after a drop it reconnects and joins again by itself', async () =
   assert.equal(s.state, 'reconnecting');
   await wait(150);
   last().open();
-  assert.deepEqual(last().sent, [{ v: 1, type: 'join', room: 'duel', name: 'Ace' }]); // a new socket knows nothing: join again
+  assert.deepEqual(last().sent, [
+    { v: 1, type: 'join', room: 'duel', name: 'Ace', format: 'binary' },
+  ]); // a new socket knows nothing: join again
   last().receive({
     type: 'joined',
     room: { id: 'duel', name: 'Duel', arena: {} },

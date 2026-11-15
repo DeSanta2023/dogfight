@@ -1,5 +1,5 @@
-import { ARENA } from '../sim/arena.js';
-import { createRng } from '../sim/rng.js';
+import { ARENA } from '@dogfight/shared/arena.js';
+import { createRng } from '@dogfight/shared/rng.js';
 
 // ---- deterministic starfield (seeded PRNG so it looks the same every run) ----
 const { next: rand } = createRng(1337);

@@ -2,11 +2,16 @@
  * Wire protocol, version 1. JSON text frames: { "v": 1, "type": "...", ...fields }.
  *
  * client -> server              server -> client
- *   join  { room, name }          welcome { id, limits }          right after connecting
- *   chat  { text }                joined  { room, you, players }  answer to a good join
+ *   join  { room, name, format? } welcome { id, limits }          right after connecting
+ *   chat  { text }                joined  { room, you, slot, players, tickHz, format }
+ *                                                                 answer to a good join
  *   leave {}                      roster  { players }             someone came or went
  *                                 chat    { from, text, at }
  *                                 error   { code, message }       the socket stays open
+ *
+ * Lab 05 adds the GAME traffic. Binary frames (see @dogfight/shared/codec.js) carry input, ping
+ * (client -> server) and snapshot, pong (server -> client). With join.format = "json" the same
+ * messages travel as JSON text: input { seq, bits[] }, ping { t }, snap {...}, pong { t, tick }.
  *
  * The server never trusts the client, not even our own: parseClientMessage() checks size, JSON
  * syntax, version, type and every field. Anything wrong is a reason to CLOSE the socket (see
@@ -19,7 +24,7 @@ export const PROTOCOL_VERSION = 1;
 export const CLOSE = Object.freeze({
   NORMAL: 1000,
   GOING_AWAY: 1001, // server shutting down
-  UNSUPPORTED: 1003, // binary frame: this protocol is text only
+  UNSUPPORTED: 1003, // binary frame before joining / a malformed binary frame
   INVALID_PAYLOAD: 1007, // not valid UTF-8 / JSON
   POLICY: 1008, // unknown type, wrong shape, rate limit
   TOO_BIG: 1009, // set by ws itself when maxPayload is exceeded
@@ -57,7 +62,29 @@ const validators = {
         CLOSE.POLICY,
         'join.name must be 1-24 letters, digits, space _ . -',
       );
-    return { type: 'join', room: m.room, name };
+    const format = m.format === undefined ? 'binary' : m.format;
+    if (format !== 'binary' && format !== 'json')
+      throw new ProtocolError(CLOSE.POLICY, 'join.format must be binary or json');
+    return { type: 'join', room: m.room, name, format };
+  },
+  // JSON flavour of the game messages (?format=json). The binary flavour is decoded by
+  // @dogfight/shared/codec.js; both end up as the same { type, seq, bits } / { type, t } objects.
+  input(m) {
+    const ok =
+      Number.isInteger(m.seq) &&
+      m.seq >= 1 &&
+      m.seq <= 0xffffffff &&
+      Array.isArray(m.bits) &&
+      m.bits.length >= 1 &&
+      m.bits.length <= 32 &&
+      m.bits.every((b) => Number.isInteger(b) && b >= 0 && b <= 15);
+    if (!ok) throw new ProtocolError(CLOSE.POLICY, 'bad input message');
+    return { type: 'input', seq: m.seq, bits: m.bits };
+  },
+  ping(m) {
+    if (typeof m.t !== 'number' || !Number.isFinite(m.t))
+      throw new ProtocolError(CLOSE.POLICY, 'bad ping');
+    return { type: 'ping', t: m.t };
   },
   chat(m) {
     const text = typeof m.text === 'string' ? m.text.trim() : '';

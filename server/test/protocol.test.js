@@ -15,6 +15,7 @@ test('a good join is cleaned (name trimmed)', () => {
     type: 'join',
     room: 'quiet-orbit',
     name: 'Ace',
+    format: 'binary', // Lab 05: binary game frames unless the client asks for JSON
   });
 });
 

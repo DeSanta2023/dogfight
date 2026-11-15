@@ -3,18 +3,19 @@
 A multiplayer-ready space dogfight built step by step in a JavaScript course (vanilla JS, ES
 modules, Vite on the client, Node + `ws` on the server).
 
-| Lab | Topic                                     | Tag      | Where to look                                             |
-| --- | ----------------------------------------- | -------- | --------------------------------------------------------- |
-| 01  | Event loop, fixed-timestep game loop      | `lab-01` | [Lab 01](#lab-01--the-game-loop)                          |
-| 02  | Objects, prototypes, `this`, composition  | `lab-02` | [Lab 02](#lab-02--the-entity-model)                       |
-| 03  | Promises, async/await, loading, lobby     | `lab-03` | [Lab 03](#lab-03--asynchronous-javascript)                |
-| 04  | Node.js: EventEmitter, streams, WebSocket | `lab-04` | [Lab 04](#lab-04--nodejs-eventemitter-streams-websockets) |
+| Lab | Topic                                     | Tag      | Where to look                                                                         |
+| --- | ----------------------------------------- | -------- | ------------------------------------------------------------------------------------- |
+| 01  | Event loop, fixed-timestep game loop      | `lab-01` | [Lab 01](#lab-01--the-game-loop)                                                      |
+| 02  | Objects, prototypes, `this`, composition  | `lab-02` | [Lab 02](#lab-02--the-entity-model)                                                   |
+| 03  | Promises, async/await, loading, lobby     | `lab-03` | [Lab 03](#lab-03--asynchronous-javascript)                                            |
+| 04  | Node.js: EventEmitter, streams, WebSocket | `lab-04` | [Lab 04](#lab-04--nodejs-eventemitter-streams-websockets)                             |
+| 05  | Authoritative server, prediction, binary  | `lab-05` | [Lab 05](#lab-05--the-server-runs-the-game-prediction-reconciliation-binary-protocol) |
 
 ## Run
 
 ```bash
 nvm use              # Node 22.9 or newer (see .nvmrc)
-npm install          # installs both workspaces (client/, server/) from the root
+npm install          # installs the workspaces (shared/, client/, server/) from the root
 
 # development: TWO terminals
 npm run dev:server   # terminal 1: game server on http://localhost:3000 (restarts on file change)
@@ -24,7 +25,7 @@ npm run dev          # terminal 2: Vite on http://localhost:5173, proxies /api a
 npm run build        # client -> client/dist
 npm start            # http://localhost:3000
 
-npm test             # 170 tests (node:test) in both workspaces, no browser needed
+npm test             # 199 tests (node:test) in all three workspaces, no browser needed
 npm run lint         # ESLint (flat config) + eslint-config-prettier
 npm run format       # Prettier
 ```
@@ -41,28 +42,36 @@ npm run event-loop-order  # Lab 04: nextTick / promise / timeout / immediate
 npm run blocking-demo     # Lab 04: a 300 ms handler freezes every client
 npm run error-crash       # Lab 04: 'error' without a listener, unhandled rejection
 npm run rss-experiment    # Lab 04: 200 MB log, slow client, rss over time (writes docs/rss.*)
+npm run tick-demo         # Lab 05: setInterval vs the target-time ticker
+npm run wire-size         # Lab 05: the same snapshot as binary and as JSON
 ```
 
-Controls: **← → / A D** rotate, **↑ / W** thrust, **Space** fire, **R** restart, **Enter** chat,
-**Esc** back to the lobby, **M** mute. The HUD at the top left shows steps/s, frames/s, frame time
+Controls: **← → / A D** rotate, **↑ / W** thrust, **Space** fire, **Enter** chat, **Esc** back to the
+lobby, **M** mute, **G** netgraph (online; **R** restarts only the offline experiments). The HUD at the top left shows steps/s, frames/s, frame time
 and CPU work per frame (Lab 01); the one at the top right shows score, hp, deaths and active pickup
 effects. Add `?seed=123` to the URL to get the same asteroids and pickups every run.
 
 ## Structure
 
 ```
-package.json                npm workspaces: client, server; one lockfile, one ESLint/Prettier setup
+package.json                npm workspaces: shared, client, server; one lockfile, one ESLint/Prettier setup
+shared/                     @dogfight/shared: the simulation, SAME code in browser and Node  (Lab 05)
+  src/                      Game, World, Ship (integrate), entities, rng, arena, input (bits, DT),
+                            snapshot.js (world -> plain data), codec.js (binary + JSON wire format)
+  test/, scripts/           50 tests (determinism, codec, PvP); wire-size.mjs
 client/                     everything that runs in the browser (Labs 01-03, plus the socket in Lab 04)
   index.html, vite.config.js
   src/main.js               wires loop + input + Game + rendering + lobby + room session
   src/loop.js, input.js     rAF + clamped accumulator; keyboard as a closure
-  src/sim/                  the simulation: NO DOM, NO canvas, NO Math.random, no audio
+  src/net/netgame.js        prediction, reconciliation, interpolation, own bullets            (Lab 05)
+  src/net/conditioner.js    artificial lag / jitter / loss for game packets                   (Lab 05)
+  src/render/netgraph.js    rtt, snapshot age, bytes/s, input queue, correction on screen     (Lab 05)
   src/render/               canvas, interpolation, sprites, loading screen
   src/assets/               loader.js (fetch/retry/abort/loadAll), chaos.js (failure injection)
   src/net/connection.js     WebSocket wrapper: send queue + reconnect with jittered backoff   (Lab 04)
   src/net/session.js        RoomSession: roster, chat, join/rejoin protocol, events            (Lab 04)
   src/lobby.js, src/ui/     lobby model (EventTarget) and the DOM for lobby, room panel, errors
-  test/, scripts/, tools/   100 tests; experiments; dev helper plugin (?delay=, real 404s)
+  test/, scripts/, tools/   59 tests; experiments; dev helper plugin (?delay=, real 404s)
 server/                     Node, ESM, one dependency (ws)                                      (Lab 04)
   index.js                  entry: config, logger, signals (SIGINT/SIGTERM), last-resort handlers
   app.js                    createApp(): http + ws + rooms + match logs; start()/stop() (testable)
@@ -70,12 +79,230 @@ server/                     Node, ESM, one dependency (ws)                      
   http.js                   node:http routes, static files with a traversal guard, body limit
   rooms.js                  Room / RoomManager extend EventEmitter (no sockets inside)
   protocol.js               the wire protocol and server-side validation of every message
-  ws.js                     WebSocket lifecycle: join timeout, heartbeat, rate limit, slow clients
+  ws.js                     WebSocket lifecycle: join timeout, heartbeat, rate limit, slow clients;
+                            binary game frames, JSON fallback, snapshots to every player      (Lab 05)
+  ticker.js, match.js       30 steps/s at a target time; one authoritative Game per room      (Lab 05)
   ratelimit.js              token bucket
   log/matchlog.js, replay.js  NDJSON Transform -> file; replay as async generator / HTTP stream
-  scripts/, test/           four experiments; 70 tests (unit + real sockets + real processes)
-docs/                       rss.svg + rss.csv (Lab 04 graph)
+  scripts/, test/           five experiments; 90 tests (unit + real sockets + browser-less loopback)
+docs/                       rss.svg + rss.csv (Lab 04 graph), two-windows.gif (Lab 05)
 ```
+
+## Lab 05 — the server runs the game: prediction, reconciliation, binary protocol
+
+Two players now fly in ONE game. The browser sends **input** (thrust / turn / fire as four bits plus
+a sequence number), never coordinates. Only the server computes the world, 30 steps per second,
+and broadcasts snapshots.
+
+![two browser windows playing the Duel room with the netgraph](docs/two-windows.gif)
+
+_Two windows, `?lag=80&jitter=15` (RTT ≈ 100 ms): Ace shoots rocks, Bo flies. Each window shows its
+own netgraph (bottom right): rtt, snapshot age, bytes/s, input queue, correction._
+
+### What runs where
+
+```
+ browser                                          server (one Match per room)
+ ───────                                          ───────────────────────────
+ keys ─► bits + seq ─► [conditioner] ─► WebSocket ─► input queue per player
+   │                                                    │ one input per tick (30/s)
+   ├─► integrate()  (same code!)  = prediction          ▼
+   │   pending[] = inputs not yet confirmed        Game.stepInputs(dt = 1/30)   ← @dogfight/shared
+   ▼                                                    │
+ draw own ship now                                      ▼ snapshot per player { tick, ackSeq, own, ships, … }
+                 ◄─ [conditioner] ◄─ WebSocket ◄────────┘
+ snapshot: own ship := server state, replay pending[]  (reconciliation, fade the error over ~100 ms)
+           others: buffer, draw 100 ms in the past between two snapshots (interpolation)
+```
+
+- **`shared/`** (`@dogfight/shared`, an npm workspace): the whole simulation (`Game`, `World`, `Ship`,
+  `integrate`, `codec`, `snapshot`). The same files are imported by the browser (Vite) and by Node.
+  No DOM, no Node modules, no `Math.random()`, no `Date.now()`: ESLint enforces it
+  (`no-restricted-properties`, `no-restricted-imports`) and a test greps for it.
+- **Fixed dt = 1/30 s** on both sides (`TICK_HZ` in `shared/src/input.js`). The networked browser
+  loop switches from 1/60 to 1/30 (`loop.setStep`), so one client step = one input = one server tick.
+- **Determinism**: randomness only from the generator seeded by the server (`room.arena.seed`); entity
+  ids are per `World` (not a global counter), so two worlds that do the same things agree on every id.
+  Test: `the same inputs give the same ship in a Game and in the bare integrate() the browser uses`
+  compares with `assert.equal` on `x, y, vx, vy, angle` — bit-for-bit, not "close".
+- **Every input has a `seq`**; every snapshot has `tick` and `ackSeq` (the last input of THAT player the
+  server has applied).
+- **Why the client's coordinates are not accepted**: see the network note below.
+
+### 30 steps/s without `setInterval` (`server/ticker.js`)
+
+The ticker keeps the _target time_ of the next step (`next += period`) and sleeps only until it
+(`setTimeout(next - now)`). A late step makes the next sleep shorter, so errors do not accumulate; after
+a long freeze it runs at most 5 steps back to back and then skips the rest (resynchronises) instead of
+fast-forwarding.
+
+`npm run tick-demo` (10 s each, 2 ms of CPU work per step, Node 22):
+
+| loop                       | steps/s   | note                                             |
+| -------------------------- | --------- | ------------------------------------------------ |
+| `setInterval(fn, 1000/30)` | **30.15** | 33.33 ms is rounded to whole ms: runs 0.5 % fast |
+| `Ticker` (target time)     | **29.99** | mean lateness 0.7 ms, max 21 ms, 0 steps skipped |
+
+`GET /health` shows the real rate of every running match (`matches.<room>.hz`, late, skipped, starved
+inputs). A fake-clock unit test shows the drift of the naive loop and the skip/resync after a 3 s freeze.
+
+### Stage 1 → stage 2: what prediction buys
+
+Time from pressing ↑ to the own ship accelerating on screen (6 runs, headless Chromium, localhost;
+`?lag=100` adds 100 ms of round trip):
+
+| mode                      | press → ship moves                                             |
+| ------------------------- | -------------------------------------------------------------- |
+| `?predict=0` (stage 1)    | no lag: 63 ms (median)                                         |
+| `?predict=0&lag=100`      | **162 ms** (129–163)                                           |
+| prediction on, `?lag=100` | **29 ms** (12–47) — one 33 ms step, independent of the network |
+
+Stage 1 waits for input → server tick → snapshot → network (≈ RTT + up to two ticks): clearly felt at
+100 ms. With prediction the key is applied in the next client step by the same `integrate()`.
+
+### Prediction and reconciliation (`client/src/net/netgame.js`)
+
+Every client step: `seq++`, push `{seq, bits}` to `pending`, `own = integrate(own, bits, DT)`, send.
+On a snapshot: drop `pending` up to `ackSeq`; `state = snapshot.own` (float64, exact); replay the rest
+of `pending` on it. The difference between the old predicted position and the new one is the
+**correction**. It is not drawn at once: the ship is _placed_ at the new state, and a render offset
+`-(correction)` fades with a time constant of 33 ms (≈ 95 % gone after 100 ms). A correction above
+120 units (respawn, collision knock) is a teleport and is not smoothed.
+
+**The `Math.random()` experiment** (`?noise=8` puts `Math.random()` into `integrate` in the _browser
+only_, via `physicsHooks.afterIntegrate`; the server stays deterministic). 8 s of flying, `?lag=100`:
+
+| physics                        | corrections (of ~260 snapshots) | mean / peak correction |
+| ------------------------------ | ------------------------------- | ---------------------- |
+| deterministic (no noise)       | **0**                           | 0 / 0                  |
+| `Math.random()` in `integrate` | **260** (every snapshot)        | 0.5 / 3.6 units        |
+
+Removed again → back to 0 (`server/test/loopback.test.js` runs both). The lesson: reconciliation is only
+"free" when browser and server compute _exactly_ the same thing; every difference is paid as a
+visible correction. Corrections also appear for real reasons the browser cannot predict: another
+player's bullet, a collision with a rock (the server pushes the ship away), a pickup.
+
+### Other ships: interpolation (entity interpolation)
+
+Other players, rocks, pickups and other players' bullets are drawn **100 ms in the past**, between the
+two snapshots that surround that moment (wrap-aware, shortest-way angle). The server clock is
+estimated as `arrival − tick·33.3 ms`, with a **minimum filter over the last 2 s** (the least-delayed
+packet tells the truth about the clock). Own bullets are shown immediately (predicted, with the
+`seq` that fired them); when the server's copy of the bullet arrives it takes over, moved forward by the
+time the server has not seen yet.
+
+### Binary protocol (`shared/src/codec.js`) vs JSON
+
+`ArrayBuffer` + `DataView`; **little-endian** on every call (the order is written down, not "whatever the
+CPU does"); byte 0 = format version, byte 1 = message type. Angles are `Int16`
+(−π…π over −32767…32767), positions of _other_ entities are `Uint16` over the arena (0.02 units per
+step), velocities `Int16`; the **own ship is sent as float64**, because the browser replays inputs from it
+and an exact copy makes the replay bit-identical. `?format=json` switches both directions to JSON text
+for comparison (`npm run wire-size`):
+
+| message (typical Duel room: 2 ships, 5 rocks, bullets, ~10 entities) | binary | JSON   | JSON / binary |
+| -------------------------------------------------------------------- | ------ | ------ | ------------- |
+| snapshot, bytes                                                      | 172    | 1379   | ×8.0          |
+| snapshots at 30/s, bytes/s per player                                | 5 168  | 41 362 | ×8.0          |
+| input packet (newest + 7 redundant inputs), bytes                    | 15     | 66     | ×4.4          |
+| inputs at 30/s, bytes/s                                              | 450    | 1 980  | ×4.4          |
+
+Measured in the browser (netgraph, 2 players, idle network): **3.5 KB/s in** with binary, **25 KB/s in**
+with JSON.
+
+Layouts (all little-endian):
+
+```
+input   u8 version | u8 type=1 | u32 firstSeq | u8 count | u8 bits × count      (bits: 1 left, 2 right, 4 thrust, 8 fire)
+ping    u8 version | u8 type=2 | f64 clientTime                                  → pong: type=2, f64 t, u32 tick
+snapshot u8 version | u8 type=1 | u32 tick | u32 ackSeq
+         own:   u8 alive, [f64 x, y, vx, vy, angle, u8 thrust, u16 cooldownMs, u8 hp, shield, rapid, homing, invuln],
+                u32 score, u16 deaths, u8 respawn
+         u8 n + n × ship     { u8 slot, u16 x, u16 y, i16 angle, u8 flags, u8 hp }          9 bytes
+         u8 n + n × bullet   { u16 id, u16 x, u16 y, i16 vx, i16 vy, u8 slot, u16 fireSeq, u8 flags }  14 bytes
+         u8 n + n × asteroid { u16 id, u16 x, u16 y, u8 size|hunter<<4 }                    7 bytes
+         u8 n + n × pickup   { u16 id, u16 x, u16 y, u8 type }                              7 bytes
+         u8 n + n × event    { u8 kind|param<<4, u16 x, u16 y }                             5 bytes
+```
+
+The server never trusts a frame: wrong version, unknown type or a length that lies → the socket is
+closed with `1003`; more than 64 bytes → `1009`; a frame before `join` → `1008` (all tested).
+
+### Losing, delaying and reordering packets (`?lag= &jitter= &loss=`)
+
+`client/src/net/conditioner.js` sits between the socket and the game, for game packets only, in both
+directions: `lag` = added round trip (each way waits lag/2), `jitter` = extra random 0…N ms per packet
+(packets get independent delays, so they arrive **out of order**), `loss` = % of packets dropped.
+Because a WebSocket is TCP (it never loses or reorders), this is the only way to see what a UDP-like
+link would do.
+
+What the game does about it:
+
+- **Input loss**: every packet repeats the last 8 inputs; the server ignores duplicates (`seq ≤ last`)
+  and fills a gap that the repeats did not cover with the previous bits. With 30 % of input packets
+  dropped over 600 ticks the server starved 25 times at most and the predicted ship stayed within
+  40 units of the server's (`loopback.test.js`).
+- **Snapshot loss / reordering**: a snapshot with a `tick` not newer than the last one is ignored
+  (counted as `late/dup` in the netgraph); a lost snapshot only makes the next picture 33 ms older.
+- **Server input queue**: one input per tick; empty → the last input is repeated (`starved`);
+  more than 6 waiting → the oldest are dropped (a client cannot move faster by sending more than 30
+  inputs/s). Game traffic has its own rate-limit bucket (90/s, burst 180).
+
+### Network note
+
+**Latency.** The speed of light and the routers cost 20–200 ms, and no code removes it. What the code can
+do is hide it _for the one thing the player controls_ (prediction: the ship answers in ≈ 30 ms whatever
+the RTT is) and smooth it for everything else (interpolation: a steady picture that is 100 ms old).
+Everything else on screen is therefore in the past and the own ship is in the future of the server;
+you aim at where others _were_, and the server decides hits on its own, older, world.
+
+**Divergence of state.** Two computers never agree "by themselves": inputs arrive late, get lost, the
+server applies a different number of them, a physics function has one `Math.random()`. The cure is not
+to keep them identical but to make one of them the truth: the server's state wins, the browser takes it
+at every snapshot and re-applies what the server has not seen. The size of the daily disagreement is
+the `correction` in the netgraph: 0 with deterministic physics, 0.5 units average with noise. Events
+the browser cannot know (somebody else's bullet) are corrections it cannot avoid.
+
+**Cheating.** The browser is the player's, not ours: anybody can edit JavaScript, so everything the
+client says is a _claim_. If the client sent coordinates it could teleport, fly at any speed or fire without
+cooldown; with an authoritative server the client can only say "I am holding thrust", and the server runs
+the real physics, the real cooldown and the real collisions. The server also validates frame size,
+version and type, rate-limits inputs, caps the input queue (no speed-hack by sending more inputs), and
+does not send the client anything it should not know. What it cannot stop: aimbots and wallhacks
+(the client does see other ships), and a client that lies about its own latency. Prediction is safe
+because it is only a _guess_ the server overrides.
+
+**Interpolation delay: 100 ms.** Snapshots come every 33 ms; to draw between two of them the render time
+must be at least one interval behind, and to survive a late or lost snapshot at least two or three.
+Measured: how many of ~480 frames in 8 s had to _freeze_ others because there was no snapshot ahead of the
+render time (`held` in the netgraph; `?lag=80&jitter=50&loss=3`):
+
+| `?delay=`   | 33 ms (1 interval) | 67 ms (2) | **100 ms (3)** | 150 ms (4.5) |
+| ----------- | ------------------ | --------- | -------------- | ------------ |
+| held frames | 304                | 17        | **3**          | 0            |
+
+100 ms is the knee: below it the picture stutters on a bad network, above it others are further in the
+past for nothing. It is a trade between smoothness and how stale other players look, and it is a flag
+(`?delay=`) because the right value depends on the player's connection.
+
+### Try it
+
+```bash
+npm install && npm run build && npm start      # http://localhost:3000, open it in TWO windows, join "Duel"
+```
+
+| URL flag                    | what it does                                             |
+| --------------------------- | -------------------------------------------------------- |
+| `?predict=0`                | stage 1: the own ship moves only after a snapshot        |
+| `?interp=0`                 | draw the newest snapshot as it is (others jump)          |
+| `?delay=100`                | interpolation delay in ms                                |
+| `?format=json`              | JSON frames instead of the binary protocol               |
+| `?lag=100&jitter=30&loss=5` | artificial round trip (ms), jitter (ms), loss (%)        |
+| `?noise=8`                  | `Math.random()` inside `integrate` (browser only)        |
+| `?graph=0` / key **G**      | hide / show the netgraph                                 |
+| `?debug=1`                  | `window.dogfight` for the console (`dogfight.net.stats`) |
+
+Commands: `npm run tick-demo` (setInterval vs ticker), `npm run wire-size` (JSON vs binary sizes).
 
 ## Lab 04 — Node.js: EventEmitter, streams, WebSockets
 
@@ -619,7 +846,7 @@ match.
 
 ### Tuning notes
 
-Starting values (`TUNING` in `src/sim/ship.js`) → final values:
+Starting values (`TUNING` in `shared/src/ship.js`) → final values:
 
 | Parameter     | Before | After | Why                                                                                                       |
 | ------------- | ------ | ----- | --------------------------------------------------------------------------------------------------------- |
@@ -767,7 +994,7 @@ through a wall).
 - [x] Vite project, `"type": "module"`, ESLint + Prettier, `.nvmrc`
 - [x] `createLoop` (rAF + clamped accumulator) with steps/s, frames/s, frame time, HUD
 - [x] `createInput` closure with `isDown` and `justPressed`
-- [x] Pure `integrate`, wrap-around, no DOM in `src/sim/`
+- [x] Pure `integrate`, wrap-around, no DOM in `shared/src/`
 - [x] Interpolated rendering (wrap-aware, angle-aware), DPR-aware resizable canvas
 - [x] Tuning notes, experiments 1–3 measured (tag `lab-01`)
 
@@ -801,4 +1028,16 @@ through a wall).
 - [x] Match log: object-mode Transform -> NDJSON file via `pipeline`; replay as async generator and HTTP stream
 - [x] Rate limit, `maxPayload`, room/connection caps, slow-client policy (`bufferedAmount`)
 - [x] README: rss graph, event loop write-up (blocking demo), crash-and-fix, 170 tests
-- [ ] Tag `lab-04`
+- [x] Tag `lab-04`
+
+**Lab 05**
+
+- [x] `shared/` package: the same simulation in the browser and in Node; fixed dt; no `Math.random()` / `Date.now()` (lint rule + test); per-world ids; seed from the server
+- [x] Server computes 30 steps/s at a target time (not `setInterval`); every input has a `seq`; snapshots carry `tick` and `ackSeq`
+- [x] Stage 1 (`?predict=0`) with a netgraph: rtt, snapshot age, bytes/s, input queue, correction
+- [x] Stage 2: prediction + reconciliation (replay unconfirmed inputs, ~100 ms smoothing); `Math.random()` experiment (`?noise=`) measured and removed
+- [x] Other ships interpolated 100 ms in the past; own bullets shown immediately
+- [x] Binary protocol (`DataView`, little-endian, version byte, `Int16` angle); JSON behind `?format=json`; JSON-vs-binary table
+- [x] Artificial lag, jitter and loss (`?lag= &jitter= &loss=`); redundant inputs, duplicate / late packet handling
+- [x] README: GIF of two windows, size table, network note (latency, divergence, cheating, interpolation delay)
+- [ ] Tag `lab-05`

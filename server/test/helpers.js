@@ -59,7 +59,12 @@ export function connect(url) {
       }
     }
   };
-  ws.on('message', (data) => {
+  result.binary = []; // game frames (snapshots, pongs) kept apart from the JSON messages
+  ws.on('message', (data, isBinary) => {
+    if (isBinary) {
+      result.binary.push(data);
+      return;
+    }
     seen.push(JSON.parse(data.toString()));
     check();
   });

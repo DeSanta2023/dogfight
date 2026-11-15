@@ -11,6 +11,8 @@ export class Bullet extends Entity {
   ttl = BULLET.ttl;
   damage = BULLET.damage;
   ownerId;
+  ownerSlot = -1; // the PLAYER who fired it: scoring and "no friendly fire on yourself"
+  fireSeq = 0; // input sequence number that fired it (Lab 05)
 
   constructor({ pos, vel, angle, ownerId }) {
     super({ kind: 'bullet', pos, vel, angle, radius: BULLET.radius, edge: 'wrap' });
@@ -25,6 +27,7 @@ export class Bullet extends Entity {
 
   onCollide(other) {
     if (other.id === this.ownerId) return;
+    if (other.kind === 'ship' && other.slot === this.ownerSlot) return; // own old ship
     if (other.kind === 'ship' || other.kind === 'asteroid') {
       other.takeDamage(this.damage, this);
       this.alive = false;
@@ -35,7 +38,7 @@ export class Bullet extends Entity {
 // ---------------------------------------------------------------------------
 // Asteroid
 // ---------------------------------------------------------------------------
-const ASTEROID_RADIUS = Object.freeze({ 1: 16, 2: 26, 3: 40 });
+export const ASTEROID_RADIUS = Object.freeze({ 1: 16, 2: 26, 3: 40 });
 
 export class Asteroid extends Entity {
   size;

@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
-import { Game } from '../src/sim/game.js';
-import { Asteroid, Pickup } from '../src/sim/entities.js';
-import { Vector2 } from '../src/sim/vector.js';
+import { Game } from '../src/game.js';
+import { Asteroid, Pickup } from '../src/entities.js';
+import { Vector2 } from '../src/vector.js';
 
 const STEP = 1 / 60;
 const FIRE = { isDown: (code) => code === 'Space' };
@@ -33,8 +33,8 @@ function duel({ size = 1 } = {}) {
 }
 
 test('the simulation imports NO audio, HUD or rendering module', () => {
-  const dir = new URL('../src/sim/', import.meta.url);
-  for (const file of readdirSync(dir)) {
+  const dir = new URL('../src/', import.meta.url);
+  for (const file of readdirSync(dir).filter((f) => f.endsWith('.js'))) {
     const source = readFileSync(new URL(file, dir), 'utf8');
     const imports = [...source.matchAll(/^\s*import[^;]*from\s+['"]([^'"]+)['"]/gm)].map(
       (m) => m[1],

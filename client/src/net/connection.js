@@ -15,7 +15,8 @@
  * mistake forever).
  *
  * Events (CustomEvent): "status" { state, attempt, delayMs }  state: connecting | open | waiting | closed
- *                       "message" { message }                  a parsed server message
+ *                       "message" { message, size }            a parsed server message
+ *                       "binary" { data, size }                a binary frame (Lab 05 game traffic)
  *                       "close" { code, reason, willRetry }
  */
 const NO_RETRY = new Set([1000, 1003, 1007, 1008, 1009]);
@@ -78,6 +79,7 @@ export class Connection extends EventTarget {
       return;
     }
     this.#socket = socket;
+    socket.binaryType = 'arraybuffer'; // game frames: an ArrayBuffer, not a Blob (DataView needs bytes now)
     socket.addEventListener('open', () => {
       if (this.#socket !== socket) return;
       this.attempt = 0;
@@ -88,6 +90,15 @@ export class Connection extends EventTarget {
     });
     socket.addEventListener('message', (event) => {
       if (this.#socket !== socket) return;
+      if (typeof event.data !== 'string') {
+        // Binary frame = game traffic (snapshot / pong): hand over the raw bytes.
+        this.dispatchEvent(
+          new CustomEvent('binary', {
+            detail: { data: event.data, size: event.data.byteLength },
+          }),
+        );
+        return;
+      }
       let message;
       try {
         message = JSON.parse(event.data);
@@ -98,7 +109,9 @@ export class Connection extends EventTarget {
         this.invalid++;
         return;
       }
-      this.dispatchEvent(new CustomEvent('message', { detail: { message } }));
+      this.dispatchEvent(
+        new CustomEvent('message', { detail: { message, size: event.data.length } }),
+      );
     });
     // 'error' carries no information in browsers (by design); the 'close' that follows does.
     socket.addEventListener('error', () => {});
@@ -141,6 +154,16 @@ export class Connection extends EventTarget {
       this.dropped++;
     }
     this.#queue.push([type, fields]);
+    return true;
+  }
+
+  /**
+   * Game traffic (input, ping): sent now or not at all. A stale input is worse than none, so it
+   * is never queued for a reconnect. Accepts an ArrayBuffer or a string.
+   */
+  sendRaw(data) {
+    if (this.state !== 'open' || this.#socket?.readyState !== 1) return false;
+    this.#socket.send(data);
     return true;
   }
 

@@ -35,7 +35,12 @@ export class Room extends EventEmitter {
   }
 
   get players() {
-    return [...this.#players.values()].map(({ id, name }) => ({ id, name }));
+    return [...this.#players.values()].map(({ id, name, slot }) => ({ id, name, slot }));
+  }
+
+  /** The player's slot (0..maxPlayers-1): which ship is theirs in the game. */
+  slotOf(playerId) {
+    return this.#players.get(playerId)?.slot ?? -1;
   }
 
   has(playerId) {
@@ -54,9 +59,13 @@ export class Room extends EventEmitter {
           'name_taken',
           `The callsign "${player.name}" is already used here`,
         );
-    this.#players.set(player.id, { id: player.id, name: player.name });
+    // The lowest free slot: a player who leaves frees theirs for the next one.
+    const used = new Set([...this.#players.values()].map((p) => p.slot));
+    let slot = 0;
+    while (used.has(slot)) slot++;
+    this.#players.set(player.id, { id: player.id, name: player.name, slot });
     this.emit('joined', {
-      player: { id: player.id, name: player.name },
+      player: { id: player.id, name: player.name, slot },
       players: this.players,
     });
   }

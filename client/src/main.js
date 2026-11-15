@@ -1,7 +1,7 @@
 import './ui/ui.css';
 import { createLoop } from './loop.js';
 import { createInput } from './input.js';
-import { Game } from './sim/game.js';
+import { Game } from '@dogfight/shared/game.js';
 import { createCanvas } from './render/canvas.js';
 import { applyWorldTransform, drawArena, drawHud } from './render/draw.js';
 import { drawEntity } from './render/draw-world.js';
@@ -9,6 +9,11 @@ import { createSprites } from './render/sprites.js';
 import { createLoadingScreen } from './render/loading.js';
 import { createAudio } from './audio.js';
 import { createHud } from './hud.js';
+import { drawNetgraph } from './render/netgraph.js';
+import { NetGame } from './net/netgame.js';
+import { Conditioner } from './net/conditioner.js';
+import { bitsFromInput } from '@dogfight/shared/input.js';
+import { physicsHooks } from '@dogfight/shared/ship.js';
 import { Lobby } from './lobby.js';
 import { mountLobbyView } from './ui/lobby-view.js';
 import { mountRetryView } from './ui/retry-view.js';
@@ -40,6 +45,14 @@ import {
 //     ?load=sequential                                load assets one after another (timing demo)
 //     ?latency=300                                    delay every asset request by 300 ms
 //     ?chaos=404,json,timeout,abort,rooms             break the FIRST load on purpose (see chaos.js)
+//   Lab 05 (networked game; every flag changes ONE thing so the effect can be seen):
+//     ?predict=0                                      stage 1: own ship moves only after a snapshot
+//     ?interp=0                                       draw the newest snapshot, no interpolation
+//     ?delay=100                                      interpolation delay in ms (default 100)
+//     ?format=json                                    JSON frames instead of the binary protocol
+//     ?lag=100 &jitter=30 &loss=5                     artificial RTT (ms), jitter (ms), loss (%)
+//     ?noise=8                                        Math.random() inside integrate (browser only)
+//     ?graph=0                                        hide the netgraph (key G toggles it)
 // ---------------------------------------------------------------------------
 const params = new URLSearchParams(location.search);
 const experiment = params.get('exp');
@@ -47,6 +60,22 @@ const autopilot = params.has('autopilot');
 const seedParam = Number(params.get('seed'));
 const chaos = parseChaos(params);
 const sequential = params.get('load') === 'sequential';
+const predict = params.get('predict') !== '0';
+const interp = params.get('interp') !== '0';
+const interpDelayMs = Number(params.get('delay')) > 0 ? Number(params.get('delay')) : 100;
+const wireFormat = params.get('format') === 'json' ? 'json' : 'binary';
+const conditioner = Conditioner.fromParams(params);
+const noise = Number(params.get('noise')) || 0;
+let showGraph = params.get('graph') !== '0';
+if (noise > 0) {
+  // The experiment: randomness inside the physics, in the BROWSER only. The server's integrate()
+  // stays deterministic, so every prediction is slightly wrong and every snapshot corrects it.
+  physicsHooks.afterIntegrate = (s) => ({
+    ...s,
+    vx: s.vx + (Math.random() - 0.5) * noise,
+    vy: s.vy + (Math.random() - 0.5) * noise,
+  });
+}
 
 const canvasApi = createCanvas(document.getElementById('game'));
 const { ctx, view } = canvasApi;
@@ -66,7 +95,8 @@ const loadingScreen = createLoadingScreen();
 let phase = experiment || autopilot ? 'playing' : 'loading';
 let sprites = null;
 let loadReport = { elapsedMs: 0, failed: [], concurrent: !sequential };
-let game = null;
+let game = null; // offline Game (experiments)
+let net = null; // NetGame while we are in a room: the server owns the world
 let room = null;
 let callsign = '';
 let simTime = 0;
@@ -95,6 +125,31 @@ function startGame() {
     detachAudio();
     detachHud();
   };
+}
+
+/** Online: no Game here. The server simulates; NetGame predicts our ship and shows the rest. */
+function startNetGame(slot) {
+  detachGame();
+  game = null;
+  net = new NetGame({
+    slot,
+    send: (data) => session?.sendGame(data),
+    format: wireFormat,
+    predict,
+    interp,
+    interpDelayMs,
+    conditioner,
+  });
+  hud.reset();
+  const detachAudio = audio.attach(net.events);
+  const detachHud = hud.attach(net.events);
+  detachGame = () => {
+    detachAudio();
+    detachHud();
+    net = null;
+    loop.setStep(1 / 60);
+  };
+  loop.setStep(1 / 30); // the same 30 steps/s as the server: one input per step = one per tick
 }
 
 if (phase === 'playing') startGame();
@@ -237,7 +292,7 @@ function enterRoom(chosen, name) {
   callsign = name;
   unmount();
   phase = 'joining';
-  session = new RoomSession({ url: wsUrl() });
+  session = new RoomSession({ url: wsUrl(), format: wireFormat });
   const current = session;
   unmount = mountRetryView(overlay, {
     title: `Joining ${chosen.name}…`,
@@ -248,12 +303,19 @@ function enterRoom(chosen, name) {
 
   current.addEventListener('joined', ({ detail }) => {
     if (session !== current) return;
-    if (phase === 'playing') return; // a re-join after a reconnect: the game keeps running
+    if (phase === 'playing') {
+      // A re-join after a reconnect: the game keeps running, unless the server gave us another ship.
+      if (net && detail.slot !== net.slot) startNetGame(detail.slot);
+      return;
+    }
     unmount();
     room = { ...detail.room, arena: { ...defaultArena, ...detail.room.arena } };
-    startGame();
+    startNetGame(detail.slot);
     phase = 'playing';
     roomUnmount = mountRoomView(roomPanel, current);
+  });
+  current.addEventListener('game', ({ detail }) => {
+    if (session === current) net?.receive(detail.data, detail.size);
   });
   current.addEventListener('rejected', ({ detail }) => {
     if (session !== current) return;
@@ -301,6 +363,8 @@ window.addEventListener('keydown', (event) => {
   if (event.code === 'KeyM' && !event.repeat && event.target?.tagName !== 'INPUT') {
     audio.toggleMute();
   }
+  if (event.code === 'KeyG' && !event.repeat && event.target?.tagName !== 'INPUT')
+    showGraph = !showGraph;
   if (event.code === 'Escape' && phase === 'playing' && !experiment && !autopilot)
     leaveGame();
 });
@@ -308,12 +372,15 @@ window.addEventListener('keydown', (event) => {
 // ---- the loop (Lab 01) ------------------------------------------------------------------------
 function simulate(dt) {
   if (phase === 'playing') {
-    if (input.justPressed('KeyR')) startGame();
-
-    game.step(dt, input);
+    if (net) {
+      net.step(bitsFromInput(input)); // only WHAT IS HELD goes to the server, never a position
+    } else {
+      if (input.justPressed('KeyR')) startGame();
+      game.step(dt, input);
+    }
 
     simTime += dt;
-    if (autopilot && !autopilotResult && simTime >= 5 && game.ship) {
+    if (autopilot && !autopilotResult && simTime >= 5 && game?.ship) {
       const { x, y } = game.ship.pos;
       autopilotResult = `5 s thrust -> x=${x.toFixed(3)} y=${y.toFixed(3)}`;
       console.log(`[${experiment ?? 'fixed'}] ${autopilotResult}`);
@@ -323,6 +390,20 @@ function simulate(dt) {
 }
 
 let frameCounter = 0;
+let entityCount = 0;
+
+/** The callsign above every OTHER ship (our own needs no label). */
+function drawCallsigns(entities) {
+  ctx.font = '12px ui-monospace, Menlo, Consolas, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#9fd2ff';
+  for (const e of entities) {
+    if (e.kind !== 'ship' || e.mine) continue;
+    const player = session?.players.find((p) => p.slot === e.slot);
+    ctx.fillText(player?.name ?? `P${e.slot}`, e.pos.x, e.pos.y - 26);
+  }
+  ctx.textAlign = 'left';
+}
 
 function render(alpha, stats) {
   frameCounter++;
@@ -338,7 +419,15 @@ function render(alpha, stats) {
   applyWorldTransform(ctx, view);
   drawArena(ctx);
   if (phase === 'playing') {
-    for (const entity of game.world) drawEntity(ctx, entity, alpha, sprites);
+    if (net) {
+      const entities = net.view(alpha);
+      for (const entity of entities) drawEntity(ctx, entity, alpha, sprites);
+      drawCallsigns(entities);
+      entityCount = entities.length;
+    } else {
+      for (const entity of game.world) drawEntity(ctx, entity, alpha, sprites);
+      entityCount = game.world.size;
+    }
     hud.drawWorld(ctx);
   }
   ctx.restore();
@@ -346,7 +435,7 @@ function render(alpha, stats) {
   if (phase === 'loading') loadingScreen.draw(ctx, view);
   if (phase !== 'playing') return;
 
-  hud.drawScreen(ctx, view, game.hud);
+  hud.drawScreen(ctx, view, net ? net.hud : game.hud);
 
   const assetNote = loadReport.failed.length
     ? `fallbacks: ${loadReport.failed.map((f) => f.id).join(', ')}`
@@ -355,7 +444,7 @@ function render(alpha, stats) {
       : 'vector art';
   const extra = [
     `mode       ${experiment ?? 'normal (rAF + fixed step)'}`,
-    `alpha      ${alpha.toFixed(2)}   dpr ${view.dpr}   entities ${game.world.size}`,
+    `alpha      ${alpha.toFixed(2)}   dpr ${view.dpr}   entities ${entityCount}`,
   ];
   if (room) {
     const n = session?.players.length ?? 1;
@@ -370,9 +459,10 @@ function render(alpha, stats) {
     );
   }
   extra.push(
-    autopilotResult || 'arrows/WASD fly · SPACE fire · R restart · M mute · Esc lobby',
+    autopilotResult || 'arrows/WASD fly · SPACE fire · M mute · G netgraph · Esc lobby',
   );
   drawHud(ctx, stats, extra);
+  if (net && showGraph) drawNetgraph(ctx, view, net, { noise });
 }
 
 const loop = createLoop({
@@ -387,12 +477,15 @@ loop.start();
 if (phase === 'loading') boot();
 
 // Handy in the DevTools console: dogfight.game.world, dogfight.game.ship.hp, ...
-if (import.meta.env?.DEV)
+if (import.meta.env?.DEV || params.has('debug'))
   globalThis.dogfight = {
     loop,
     audio,
     get game() {
       return game;
+    },
+    get net() {
+      return net;
     },
     get phase() {
       return phase;

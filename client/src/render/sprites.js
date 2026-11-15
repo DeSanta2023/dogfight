@@ -1,4 +1,4 @@
-import { ARENA } from '../sim/arena.js';
+import { ARENA } from '@dogfight/shared/arena.js';
 
 /**
  * Sprite-sheet rendering with drawImage(sheet, sx, sy, sw, sh, dx, dy, dw, dh): copy one

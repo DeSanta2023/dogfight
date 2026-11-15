@@ -18,6 +18,7 @@ export class World {
   #events = [];
   #scratch = []; // reused every step: no per-step array allocation
   #collide;
+  #nextId = 1; // ids are per WORLD, so two worlds that do the same things agree on every id
 
   constructor({ collide = findCollisions } = {}) {
     this.#collide = collide; // swappable collision system
@@ -25,6 +26,7 @@ export class World {
 
   spawn(entity) {
     entity.world = this;
+    entity.id = this.#nextId++;
     this.#entities.set(entity.id, entity);
     return entity;
   }

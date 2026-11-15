@@ -3,8 +3,8 @@
 // Ship.fire() needs `this` (cooldown, pose, world). Pass it somewhere as a bare function
 // reference — an event listener, setTimeout, a callback — and the object to the left of the dot
 // is gone, so `this` is no longer the ship.
-import { Ship } from '../src/sim/ship.js';
-import { World } from '../src/sim/world.js';
+import { Ship } from '@dogfight/shared/ship.js';
+import { World } from '@dogfight/shared/world.js';
 
 const world = new World();
 const ship = world.spawn(new Ship());
