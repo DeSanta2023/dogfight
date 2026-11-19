@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    // The simulation must run in the browser AND in Node: so it may use NEITHER world's
+    // globals. No DOM lib, no @types/node: `document` or `process` here is a compile error.
+    "lib": ["ES2023"],
+    "types": []
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,6 @@
+{
+  // The TESTS run in Node, so they may use node:test, URL, fs. The code under test may not.
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": { "lib": ["ES2023"], "types": ["node"] },
+  "include": ["src", "test"]
+}

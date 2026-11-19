@@ -9,7 +9,7 @@
     "server"
   ],
   "engines": {
-    "node": ">=22.9"
+    "node": ">=22.18"
   },
   "scripts": {
     "dev": "npm run dev --workspace client",
@@ -30,13 +30,18 @@
     "rss-experiment": "npm run rss-experiment --workspace server",
     "event-loop-order": "npm run event-loop-order --workspace server",
     "tick-demo": "npm run tick-demo --workspace server",
-    "wire-size": "npm run wire-size --workspace shared"
+    "wire-size": "npm run wire-size --workspace shared",
+    "typecheck": "tsc -p shared && tsc -p shared/tsconfig.test.json && tsc -p server && tsc -p client"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.5",
+    "@types/ws": "^8.18.2",
     "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.14.0",
-    "prettier": "^3.9.10"
+    "prettier": "^3.9.10",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.2"
   }
 }

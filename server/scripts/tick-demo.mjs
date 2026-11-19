@@ -1,5 +1,5 @@
 // npm run tick-demo  — setInterval vs the target-time Ticker, same load, same duration.
-import { Ticker } from '../ticker.js';
+import { Ticker } from '../ticker.ts';
 
 const SECONDS = Number(process.argv[2] ?? 10);
 const HZ = 30;

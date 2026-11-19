@@ -14,7 +14,7 @@ modules, Vite on the client, Node + `ws` on the server).
 ## Run
 
 ```bash
-nvm use              # Node 22.9 or newer (see .nvmrc)
+nvm use              # Node 22.18 or newer (see .nvmrc): runs .ts files by itself
 npm install          # installs the workspaces (shared/, client/, server/) from the root
 
 # development: TWO terminals
@@ -25,7 +25,8 @@ npm run dev          # terminal 2: Vite on http://localhost:5173, proxies /api a
 npm run build        # client -> client/dist
 npm start            # http://localhost:3000
 
-npm test             # 199 tests (node:test) in all three workspaces, no browser needed
+npm test             # 202 tests (node:test) in all three workspaces, no browser needed
+npm run typecheck    # tsc --strict over shared, server, client (and the tests): must print nothing
 npm run lint         # ESLint (flat config) + eslint-config-prettier
 npm run format       # Prettier
 ```
@@ -57,36 +58,103 @@ effects. Add `?seed=123` to the URL to get the same asteroids and pickups every 
 package.json                npm workspaces: shared, client, server; one lockfile, one ESLint/Prettier setup
 shared/                     @dogfight/shared: the simulation, SAME code in browser and Node  (Lab 05)
   src/                      Game, World, Ship (integrate), entities, rng, arena, input (bits, DT),
-                            snapshot.js (world -> plain data), codec.js (binary + JSON wire format)
-  test/, scripts/           50 tests (determinism, codec, PvP); wire-size.mjs
+                            snapshot.ts (world -> plain data), codec.ts (binary + JSON wire format)
+  test/, scripts/           51 tests (determinism, codec, PvP, types); wire-size.mjs
 client/                     everything that runs in the browser (Labs 01-03, plus the socket in Lab 04)
-  index.html, vite.config.js
-  src/main.js               wires loop + input + Game + rendering + lobby + room session
-  src/loop.js, input.js     rAF + clamped accumulator; keyboard as a closure
-  src/net/netgame.js        prediction, reconciliation, interpolation, own bullets            (Lab 05)
-  src/net/conditioner.js    artificial lag / jitter / loss for game packets                   (Lab 05)
-  src/render/netgraph.js    rtt, snapshot age, bytes/s, input queue, correction on screen     (Lab 05)
+  index.html, vite.config.ts
+  src/main.ts               wires loop + input + Game + rendering + lobby + room session
+  src/loop.ts, input.ts     rAF + clamped accumulator; keyboard as a closure
+  src/net/netgame.ts        prediction, reconciliation, interpolation, own bullets            (Lab 05)
+  src/net/conditioner.ts    artificial lag / jitter / loss for game packets                   (Lab 05)
+  src/render/netgraph.ts    rtt, snapshot age, bytes/s, input queue, correction on screen     (Lab 05)
   src/render/               canvas, interpolation, sprites, loading screen
-  src/assets/               loader.js (fetch/retry/abort/loadAll), chaos.js (failure injection)
-  src/net/connection.js     WebSocket wrapper: send queue + reconnect with jittered backoff   (Lab 04)
-  src/net/session.js        RoomSession: roster, chat, join/rejoin protocol, events            (Lab 04)
-  src/lobby.js, src/ui/     lobby model (EventTarget) and the DOM for lobby, room panel, errors
+  src/assets/               loader.ts (fetch/retry/abort/loadAll), chaos.ts (failure injection)
+  src/net/connection.ts     WebSocket wrapper: send queue + reconnect with jittered backoff   (Lab 04)
+  src/net/session.ts        RoomSession: roster, chat, join/rejoin protocol, events            (Lab 04)
+  src/lobby.ts, src/ui/     lobby model (EventTarget) and the DOM for lobby, room panel, errors
   test/, scripts/, tools/   59 tests; experiments; dev helper plugin (?delay=, real 404s)
-server/                     Node, ESM, one dependency (ws)                                      (Lab 04)
-  index.js                  entry: config, logger, signals (SIGINT/SIGTERM), last-resort handlers
-  app.js                    createApp(): http + ws + rooms + match logs; start()/stop() (testable)
-  config.js                 the ONLY reader of process.env; validates every value at start-up
-  http.js                   node:http routes, static files with a traversal guard, body limit
-  rooms.js                  Room / RoomManager extend EventEmitter (no sockets inside)
-  protocol.js               the wire protocol and server-side validation of every message
-  ws.js                     WebSocket lifecycle: join timeout, heartbeat, rate limit, slow clients;
+server/                     Node, ESM, TypeScript (types stripped by Node itself); dependencies: ws, zod                                      (Lab 04)
+  index.ts                  entry: config, logger, signals (SIGINT/SIGTERM), last-resort handlers
+  app.ts                    createApp(): http + ws + rooms + match logs; start()/stop() (testable)
+  config.ts                 the ONLY reader of process.env; validates every value at start-up
+  http.ts                   node:http routes, static files with a traversal guard, body limit
+  rooms.ts                  Room / RoomManager extend EventEmitter (no sockets inside)
+  protocol.ts               the wire protocol and server-side validation of every message
+  ws.ts                     WebSocket lifecycle: join timeout, heartbeat, rate limit, slow clients;
                             binary game frames, JSON fallback, snapshots to every player      (Lab 05)
-  ticker.js, match.js       30 steps/s at a target time; one authoritative Game per room      (Lab 05)
-  ratelimit.js              token bucket
-  log/matchlog.js, replay.js  NDJSON Transform -> file; replay as async generator / HTTP stream
-  scripts/, test/           five experiments; 90 tests (unit + real sockets + browser-less loopback)
+  ticker.ts, match.ts       30 steps/s at a target time; one authoritative Game per room      (Lab 05)
+  ratelimit.ts              token bucket
+  log/matchlog.ts, replay.ts  NDJSON Transform -> file; replay as async generator / HTTP stream
+  scripts/, test/           five experiments; 92 tests (unit + real sockets + browser-less loopback)
 docs/                       rss.svg + rss.csv (Lab 04 graph), two-windows.gif (Lab 05)
 ```
+
+## Lab 06 — TypeScript for the protocol and the simulation
+
+Same game, same behaviour (the determinism and loopback tests are unchanged and green), but now the
+compiler checks it. **82 files** are `.ts`, `tsc` runs in `strict` mode with `noUncheckedIndexedAccess`,
+`erasableSyntaxOnly` and `verbatimModuleSyntax`, and there is **no `any`** anywhere. Node runs the
+`.ts` files by stripping the types (no build step for the server or the tests); Vite does the same
+for the browser. `npm run typecheck` is the only thing that actually checks types, and CI runs it
+(`.github/workflows/ci.yml`: typecheck, lint, format check, tests, build).
+
+### What was done, in the order of the lab
+
+- **`shared/` first.** `Vector2` fields are `readonly`. Snapshot entities carry a `kind` field
+  (`'ship' | 'bullet' | 'asteroid' | 'pickup'`), so `switch (e.kind)` narrows to the right shape.
+  `EntityId`, `Seq` and `Tick` are **branded** numbers (`shared/src/brand.ts`): an id cannot be passed
+  where a sequence number is expected. Every `switch` over a `type` or `kind` ends in
+  `default: return assertNever(x)`, so a new message type or event without a handler is a `tsc` error,
+  not a silent no-op.
+- **Zod at the door.** The messages are described once as Zod schemas (`shared/src/protocol.ts`) and the
+  TypeScript types are _derived_ from them (`z.infer`), so schema and type cannot drift apart.
+  `parseClientMessage(raw: unknown)` returns a result instead of throwing: a broken JSON frame is
+  written to the log and the socket is closed with the same code as in Lab 04. The hand-written checks
+  of Lab 04 are gone. The binary decoder checks length, ranges and the version byte itself
+  (`DecodeError`).
+- **Server and client under `strict`.** Room events are typed (`RoomEvents`), the environment config
+  goes through a Zod schema, every `catch (error)` is `unknown` and is narrowed (`server/errors.ts`),
+  and the browser's own events (`TypedEventTarget`, `GameEvents`) know their payloads.
+- **`as` casts: 4**, each with a one-line comment next to it: the brand constructor (`brand.ts`), the
+  `detail` of a `CustomEvent` that our own `emit()` created (`typed-target.ts`), the timer handle type
+  (`ticker.ts`) and `server.address()` after `listen` (`app.ts`). Two `@ts-expect-error` lines remain
+  in tests on purpose: they prove that writing to a `readonly` field does not compile.
+
+### What TypeScript found
+
+Types erase at run time, so data from the network is still checked at run time (Zod, `DecodeError`).
+What the compiler caught while migrating, in code that had worked for weeks:
+
+1. **A hole in the binary decoder.** The Lab 05 codec accepted a pickup record with type `9`. The
+   renderer then did `PICKUP_STYLE[9].color` on `undefined` and the frame crashed. I reproduced it
+   with the old code (it returns `type: 9`); the typed version has `PickupType = 'shield' | 'rapid' |
+'homing'`, the decoder maps the byte through that list and throws `DecodeError('pickup type 9 out
+of range')`.
+2. **A comparison that could never be true.** `NetGame` checked `message.type === 'snap'`, a name
+   that does not exist in the protocol (the real one is `'snapshot'`). Once `message` had a type
+   (`ServerMessage`), `tsc` called it out; the code is now a `switch` with `assertNever`.
+3. **Arrays that "are never empty".** `slice[0].seq` and `clockSamples[0].at` assumed an element
+   exists. `noUncheckedIndexedAccess` makes `array[i]` of type `T | undefined`, and each place now says
+   what happens when it is empty.
+
+### Three types in plain words
+
+- **Discriminated union** (`kind`, `type`, `alive`): a value is _one of several shapes_ and one
+  field says which. After `if (own.alive)` the compiler knows `own.x` exists; before it, `own.x` is an
+  error. It replaces "check the field and hope".
+- **Branded type** (`Seq`, `Tick`, `EntityId`): at run time a plain number, at compile time a number
+  with a sticky label. `ackSeq` (a `Seq`) cannot be compared with a `Tick` by accident.
+- **`unknown`** instead of `any`: "I have a value and know nothing about it". `any` switches the checks
+  off; `unknown` forces a check (`typeof`, `instanceof`, a Zod parse) before the value is used. Every
+  byte from the network and every caught error starts as `unknown`.
+
+### Framework or not
+
+I kept the lobby, HUD and room panel as they are (plain DOM modules, now typed) and used **no**
+framework. The game's heart is a canvas and a fixed-step loop that a framework does not touch, and the
+DOM part is small (a room list, a callsign field, a chat box). A framework would add a build
+dependency and a second way to do state without removing any code that hurts. It would start to pay off
+if the UI grew screens with shared state (settings, friends, a match history).
 
 ## Lab 05 — the server runs the game: prediction, reconciliation, binary protocol
 
@@ -1040,4 +1108,15 @@ through a wall).
 - [x] Binary protocol (`DataView`, little-endian, version byte, `Int16` angle); JSON behind `?format=json`; JSON-vs-binary table
 - [x] Artificial lag, jitter and loss (`?lag= &jitter= &loss=`); redundant inputs, duplicate / late packet handling
 - [x] README: GIF of two windows, size table, network note (latency, divergence, cheating, interpolation delay)
-- [ ] Tag `lab-05`
+- [x] Tag `lab-05`
+
+**Lab 06**
+
+- [x] `shared/`, server and client are TypeScript, `strict` + `noUncheckedIndexedAccess`; no `any`; 4 documented `as`
+- [x] `readonly` vector, `kind`-tagged snapshot entities, branded `EntityId` / `Seq` / `Tick`
+- [x] Protocol described with Zod, types derived with `z.infer`; `parseClientMessage(unknown)` returns a result (broken JSON: log + close, no exception); the binary decoder validates length, ranges and version
+- [x] Every `switch` on `type` / `kind` ends in `assertNever`
+- [x] Typed room events, Zod-validated env config, `catch` as `unknown`
+- [x] `npm run typecheck` in CI; determinism test still green
+- [x] README: what TypeScript found, three types in plain words, framework decision
+- [ ] Tag `lab-06`

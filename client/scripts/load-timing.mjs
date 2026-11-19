@@ -10,7 +10,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadAll } from '../src/assets/loader.js';
+import { loadAll } from '../src/assets/loader.ts';
 
 const args = Object.fromEntries(
   process.argv.slice(2).map((a) => a.replace(/^--/, '').split('=')),

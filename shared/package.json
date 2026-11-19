@@ -5,10 +5,13 @@
   "type": "module",
   "description": "The simulation: the SAME files run in the browser (prediction) and in Node (authority). No DOM, no Node modules.",
   "exports": {
-    "./*.js": "./src/*.js"
+    "./*.ts": "./src/*.ts"
   },
   "scripts": {
     "test": "node --test",
     "wire-size": "node scripts/wire-size.mjs"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
   }
 }

@@ -2,7 +2,7 @@
 // Runs the SAME pure integrate() for 5 simulated seconds of held thrust under different
 // frame-time patterns, once with a fixed-step accumulator and once with a variable step.
 // Usage: npm run determinism
-import { createShip, integrate } from '@dogfight/shared/ship.js';
+import { createShip, integrate } from '@dogfight/shared/ship.ts';
 
 const STEP = 1 / 60;
 const MAX_DELTA = 0.25;

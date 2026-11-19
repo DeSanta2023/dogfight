@@ -1,6 +1,6 @@
 // Lab 02 console experiments (notes §§1-3 of the lab). Run with: npm run prototypes
-import { Ship } from '@dogfight/shared/ship.js';
-import { Entity } from '@dogfight/shared/entity.js';
+import { Ship } from '@dogfight/shared/ship.ts';
+import { Entity } from '@dogfight/shared/entity.ts';
 
 const show = (label, value) => console.log(`${label.padEnd(46)} ${value}`);
 

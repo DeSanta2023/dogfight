@@ -22,7 +22,7 @@ import { join, dirname } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
-import { createMatchLog } from '../log/matchlog.js';
+import { createMatchLog } from '../log/matchlog.ts';
 
 const args = Object.fromEntries(
   process.argv

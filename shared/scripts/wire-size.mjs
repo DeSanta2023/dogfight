@@ -1,13 +1,13 @@
 // npm run wire-size  — the same snapshot as binary and as JSON.
-import { Game } from '../src/game.js';
-import { BIT, DT, inputFromBits } from '../src/input.js';
-import { captureSnapshot } from '../src/snapshot.js';
+import { Game } from '../src/game.ts';
+import { BIT, DT, inputFromBits } from '../src/input.ts';
+import { captureSnapshot } from '../src/snapshot.ts';
 import {
   encodeInput,
   encodeInputJson,
   encodeSnapshot,
   encodeSnapshotJson,
-} from '../src/codec.js';
+} from '../src/codec.ts';
 
 const game = new Game({
   seed: 404,

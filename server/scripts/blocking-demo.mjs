@@ -17,9 +17,9 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { loadConfig } from '../config.js';
-import { createApp } from '../app.js';
-import { createLogger } from '../logger.js';
+import { loadConfig } from '../config.ts';
+import { createApp } from '../app.ts';
+import { createLogger } from '../logger.ts';
 
 // ---- client mode: `node blocking-demo.mjs --client <base> <slowCalls>` ---------------------------
 if (process.argv[2] === '--client') {
