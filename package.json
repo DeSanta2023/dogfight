@@ -31,17 +31,26 @@
     "event-loop-order": "npm run event-loop-order --workspace server",
     "tick-demo": "npm run tick-demo --workspace server",
     "wire-size": "npm run wire-size --workspace shared",
-    "typecheck": "tsc -p shared && tsc -p shared/tsconfig.test.json && tsc -p server && tsc -p client"
+    "typecheck": "tsc -p shared && tsc -p shared/tsconfig.test.json && tsc -p server && tsc -p client && tsc -p e2e",
+    "build:profile": "npm run build:profile --workspace client",
+    "perf:client": "node perf/scripts/profile-client.mjs",
+    "perf:load": "node perf/scripts/load.mjs",
+    "test:e2e": "playwright test",
+    "coverage": "npm run coverage --workspace shared"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^22.20.5",
     "@types/ws": "^8.18.2",
+    "@vitest/coverage-v8": "^5.1.1",
     "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",
+    "fast-check": "^4.10.3",
     "globals": "^17.14.0",
     "prettier": "^3.9.10",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.72.2"
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^5.1.1"
   }
 }

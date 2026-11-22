@@ -3,6 +3,8 @@
 A multiplayer-ready space dogfight built step by step in a JavaScript course (vanilla JS, ES
 modules, Vite on the client, Node + `ws` on the server).
 
+[![CI](https://github.com/DeSanta2023/dogfight/actions/workflows/ci.yml/badge.svg)](https://github.com/DeSanta2023/dogfight/actions/workflows/ci.yml)
+
 | Lab | Topic                                     | Tag      | Where to look                                                                         |
 | --- | ----------------------------------------- | -------- | ------------------------------------------------------------------------------------- |
 | 01  | Event loop, fixed-timestep game loop      | `lab-01` | [Lab 01](#lab-01--the-game-loop)                                                      |
@@ -10,6 +12,8 @@ modules, Vite on the client, Node + `ws` on the server).
 | 03  | Promises, async/await, loading, lobby     | `lab-03` | [Lab 03](#lab-03--asynchronous-javascript)                                            |
 | 04  | Node.js: EventEmitter, streams, WebSocket | `lab-04` | [Lab 04](#lab-04--nodejs-eventemitter-streams-websockets)                             |
 | 05  | Authoritative server, prediction, binary  | `lab-05` | [Lab 05](#lab-05--the-server-runs-the-game-prediction-reconciliation-binary-protocol) |
+| 06  | TypeScript for protocol and simulation    | `lab-06` | [Lab 06](#lab-06--typescript-for-the-protocol-and-the-simulation)                     |
+| 07  | V8, memory, tests, CI                     | `lab-07` | [Lab 07](#lab-07--v8-memory-and-tests)                                                |
 
 ## Run
 
@@ -86,8 +90,148 @@ server/                     Node, ESM, TypeScript (types stripped by Node itself
   ratelimit.ts              token bucket
   log/matchlog.ts, replay.ts  NDJSON Transform -> file; replay as async generator / HTTP stream
   scripts/, test/           five experiments; 92 tests (unit + real sockets + browser-less loopback)
-docs/                       rss.svg + rss.csv (Lab 04 graph), two-windows.gif (Lab 05)
+docs/                       rss.svg + rss.csv (Lab 04 graph), two-windows.gif (Lab 05), perf/ (Lab 07)
+perf/                       Lab 07: bots, client profiler, load test, sim and collision benchmarks
+e2e/                        Lab 07: Playwright, two browsers in one room
 ```
+
+## Lab 07 — V8, memory and tests
+
+How to run everything in this lab:
+
+```bash
+npm test                 # Vitest: shared + client + server (263 tests)
+npm run coverage         # shared/ coverage, fails under 85 %
+npm run test:e2e         # Playwright: two browsers in one room (builds the client, starts the server)
+npm run build:profile    # client build with readable function names, for profiling
+npm run perf:client -- --label after              # 30 s, 8 bots + 1 browser (add --throttle 4)
+npm run perf:load   -- --label after              # 8 / 32 / 64 / 128 / ... bots, server step time
+node perf/scripts/sim-bench.mjs --label after     # the simulation alone: ms per step + GC
+node perf/scripts/demo.mjs                        # server + 8 bots, open the game yourself and record DevTools
+```
+
+### 1. Tests (Vitest, fast-check, Playwright)
+
+| Where     | Tests | What                                                                                                                                                                         |
+| --------- | ----: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shared/` |    95 | vector, `integrate`, collisions (naive = spatial hash), pools, step determinism, codec, **11 fast-check properties**                                                         |
+| `client/` |    66 | loop with **fake timers** (`vi.useFakeTimers`), interpolation, connection, lobby, loader                                                                                     |
+| `server/` |   102 | rate limit and ticker with fake timers, message parser (valid accepted / corrupted rejected), loopback client-vs-server, real sockets, processes                             |
+| `e2e/`    |     1 | two real browsers (two isolated contexts) in the room "Melee": the second sees the first one's ship move (read from its snapshots), and the first one's chat message arrives |
+
+Coverage of `shared/` (`npm run coverage`): **94 % lines, 84 % branches, 90 % functions**; the gate in
+`shared/vitest.config.ts` fails the run under 85 % lines/statements/functions.
+
+Property tests (`shared/test/properties.test.ts`, `protocol.test.ts`):
+
+- `decode(encode(snapshot))` gives the snapshot back up to the rounding the format promises (positions u16 over the arena, angle Int16: error ≤ one quantum);
+- an angle survives the Int16 round trip within half a step, whatever the input;
+- the length of an encoded frame equals the format description (23 bytes of header and fixed part, then 9 / 14 / 7 / 7 / 5 bytes per ship / bullet / asteroid / pickup / event);
+- a corrupted buffer (random bytes flipped / truncated / garbage) gives a `DecodeError`, never another exception;
+- whatever keys are pressed, a ship never leaves the arena and its speed stays bounded;
+- the message parser accepts what it should and rejects corrupted input; same seed + same inputs = same world.
+
+fast-check prints the seed of a failing run and shrinks the counter-example; replay it with `fc.assert(property, { seed, path })`.
+
+### 2. CI
+
+`.github/workflows/ci.yml` runs on every push and pull request: typecheck (shared, client, server, e2e) → ESLint → Prettier → Vitest → coverage gate → build → `playwright install chromium` → the two-browser scenario. A failed run uploads the Playwright report.
+
+[![CI](https://github.com/DeSanta2023/dogfight/actions/workflows/ci.yml/badge.svg)](https://github.com/DeSanta2023/dogfight/actions/workflows/ci.yml)
+
+### 3. Measuring (8 bots + 1 browser, 30 s)
+
+`perf/lib/bots.mjs`: a bot is a WebSocket that sends **exactly** what the browser sends — the binary input packet of `codec.ts`, 30 per second, the last 8 inputs repeated in each — made from the same four key bits (LEFT, RIGHT, THRUST, FIRE) by a seeded random "pilot". The room "Melee" holds 16.
+
+Frame time = `requestAnimationFrame` deltas in the page. GC pauses = Chrome trace events (`V8.GCScavenger` = minor, `V8.GCCompactor/MajorGC` = major). "Who allocates" = Chrome's sampling **heap** profiler with garbage included. Flame chart = Chrome's CPU profile (`Profiler.start`) drawn by `perf/lib/flame.mjs`; it is the same data as DevTools > Performance, but drawn by my script (a DevTools screenshot of the same recording is a good addition for the defence).
+
+> Environment: 2 vCPUs in a cloud container, headless Chromium 157, server and 8 bots on the same machine. Headless `requestAnimationFrame` is locked to 60 Hz, so frame times come out as 16.7 ms (one vsync) or a multiple of it. "p99 16.8 ms" therefore means "no frame was missed". To make small costs visible the run was repeated with DevTools' **CPU 4× slowdown**. Absolute numbers will differ on your machine; run the commands above to get yours.
+
+**Browser, before → after** (`docs/perf/client-*.json`):
+
+| Run           |        | frame p50 |  p95 |  p99 |  max | frames > 16.7 ms | minor GC (count / total / max) | major GC (count / total / max) |
+| ------------- | ------ | --------: | ---: | ---: | ---: | ---------------: | ------------------------------ | ------------------------------ |
+| normal        | before |      16.7 | 16.7 | 16.8 | 16.8 |                0 | 46 / 61 ms / 2.3 ms            | 4 / 35 ms / 11.3 ms            |
+| normal        | after  |      16.7 | 16.7 | 16.8 | 16.8 |                0 | **28** / 50 ms / 2.5 ms        | 4 / 38 ms / 11.2 ms            |
+| CPU 4× slower | before |      16.7 | 33.4 | 33.4 | 66.6 |              385 | 38 / 196 ms / 9.1 ms           | 2 / 60 ms / 30.2 ms            |
+| CPU 4× slower | after  |      16.7 | 33.4 | 49.9 | 50.1 |              348 | **26** / **138 ms** / 9.4 ms   | 2 / 87 ms / 44.1 ms            |
+
+Honest reading: the goal "p99 under one frame and no long GC pause" **is met in the normal run, before and after** — this game on this scene was already smooth, so the optimisations cannot make it smoother. What they changed is the garbage: **40 % fewer minor collections** in the normal run (46 → 28) and 30 % less minor-GC time under load (196 → 138 ms), and less JavaScript time under the 4× slowdown (3.9 s → 3.4 s of the 30 s; 385 → 348 slow frames). The 4× runs are noisy (p99 went from 2 to 3 missed vsyncs while max and the slow-frame count improved; the single 44 ms major GC is V8's mark-compact of the old generation, not something the game allocates its way into). I did not run enough repetitions to claim a p99 win under load.
+
+**Who allocates most** (sampling heap profile, 30 s):
+
+| before                                       | share | after                                   | share |
+| -------------------------------------------- | ----: | --------------------------------------- | ----: |
+| `interpolateEntity` (a `Pose` per entity)    | 11.3% | `interpolateInto` (reused scratch pose) | 11.3% |
+| `#viewWorld` (Maps, closures, blend objects) |  8.4% | `drawShip` (canvas path objects)        |  9.7% |
+| `drawArena` (stars and grid, every frame)    |  8.3% | `drawEntity`                            |  7.6% |
+| `bullet()` (a Drawable per bullet per frame) |  7.9% | `drawNetgraph`                          |  5.8% |
+
+(The percentages are shares of the sampled bytes, so the absolute amount fell as well: `docs/perf/client-*.json` has the KB.) The remaining allocators are canvas calls inside the browser, not our objects.
+
+Flame charts: `docs/perf/flame-before.png`, `flame-after.png` (and the `-4x` ones). In all of them `(program)` — the browser's own rasterising and compositing — is ~75 % of the busy time; our JS (`frame` → `simulate` / `render` → `drawEntity`) is the thin tower on the right, which is why JS-level changes do not move the frame time.
+
+![before](docs/perf/flame-before.png)
+![after](docs/perf/flame-after.png)
+
+### 4. What was changed, and why
+
+- **Pools for bullets and particles** (`shared/src/pool.ts`, `entities.ts`). A bullet is `Bullet.acquire()`d in `Ship.fire()` and `release()`d when the World sweeps it; an `Explosion` takes its sparks from `particlePool` and gives them back when it dies. `reset()` sets **every** field (the classic pool bug is a reused object remembering its previous life); `pool.test.ts` checks exactly that, and the determinism / loopback tests prove that the simulation cannot tell a pooled bullet from a new one.
+- **No allocation per frame in the render path** (`client/src/render/drawable-pool.ts`, `interpolate.ts`, `netgame.ts`). The old `view()` built a `Drawable` (+ two position objects, a closure for `hasEffect`, a `Map` per entity kind and a blend object) for every entity on every frame. Now `DrawablePool.begin()` rewinds pooled objects of stable shape (one hidden class per kind: V8 keeps the property accesses monomorphic), `interpolateInto` writes into one scratch `Pose`, the `id → entry` index is built once per snapshot, and `drawArena` blits a cached static layer instead of drawing 100+ stars and the grid each frame. **No `Vector2` is created per frame in the loop** (the only `new Vector2` left in `client/` is for an explosion event).
+- **Simulation step** (`Entity.move`: one vector instead of two, no intermediate `add(scale())`; `World.liveEntities()` hands out one reused array instead of a generator and a `{value, done}` object per entity (that showed up in the server's CPU profile at 128 players)). `Vector2` stays immutable on purpose (`prevPos = pos` aliasing is safe because of it): the step still makes one vector per entity per tick. Measured with the allocation profiler (`perf/scripts/alloc-profile.mjs`, 16 players): **49.0 → 22.2 KB per tick**.
+
+| Simulation alone (`sim-bench`, 16 players, 20 000 steps) |        before |             after |
+| -------------------------------------------------------- | ------------: | ----------------: |
+| ms per step, mean / p99                                  | 0.037 / 0.181 | **0.019 / 0.073** |
+| GC per 1000 steps                                        |           6.5 |          **4.25** |
+| minor GC total time                                      |         45 ms |         **24 ms** |
+| steps per second                                         |        27 200 |        **52 500** |
+
+### 5. Server: is the step eaten by all-vs-all collisions? → measured, and the answer is mostly no
+
+`Match.stepStats()` times every tick (the world step `sim`, and the `total` that includes building and sending every player's snapshot); `GET /health` shows it. In the load test (below) at 128 players the world step is **0.8 ms of 7.2 ms**; the other 90 % is building and encoding one snapshot per player. So the spatial hash was **not** the thing that limits the server. I still implemented it (`createSpatialHash()` in `collision.ts`, a uniform grid; same pairs in the same order as the naive version, proven by a test and by `samePairs: true` in the benchmark) and measured it alone (`perf/scripts/collision-bench.mjs`):
+
+| solid entities            |   16 |   32 |  64 |  128 |  256 | 512 | 1024 |
+| ------------------------- | ---: | ---: | --: | ---: | ---: | --: | ---: |
+| naive, µs per call        |  1.2 |  4.1 |  14 |   53 |  211 | 929 | 3723 |
+| spatial hash, µs per call |  1.7 |  3.8 | 4.6 |   14 |   28 |  84 |  458 |
+| speed-up                  | 0.7× | 1.1× |  3× | 3.7× | 7.7× | 11× |   8× |
+
+Below ~32 entities (a normal room has ~34) the grid is a wash; from 64 it wins clearly. The server (`Match`) uses it; the offline game keeps the naive default. Next bottleneck, not done here: encode the snapshot once per tick for players who see the same entities, instead of once per player.
+
+### 6. Load: from how many players does a server step exceed 33 ms?
+
+`perf/scripts/load.mjs` starts a **fresh server process** per count, joins N headless bots to one room ("load", 250 slots) and reads the server's own step timer after 10 s. Server and bots share 2 vCPUs, so this is a pessimistic setup. The server code was the same for "before" and "after" except for the Lab 07 changes above.
+
+| players | mean step, ms (before → after) | p99 step, ms (before → after) |        ticks/s (after) |
+| ------: | -----------------------------: | ----------------------------: | ---------------------: |
+|       8 |                    0.55 → 0.67 |                     1.9 → 4.1 |                   30.0 |
+|      32 |                    1.39 → 1.32 |                     3.4 → 3.0 |                   30.0 |
+|      64 |                    3.14 → 3.12 |                     6.9 → 9.2 |                   30.0 |
+|     128 |                    8.01 → 7.19 |                   13.4 → 16.0 |                   29.9 |
+|     192 |                       – → 12.4 |                      – → 24.4 |                   29.9 |
+|     250 |                       – → 18.6 |                  – → **38.9** | 29.5 (6 ticks skipped) |
+
+![load](docs/perf/load-after.svg)
+
+**The mean and median step stay under 33 ms up to 250 players; the first count where a step exceeds 33.3 ms (p99) is 250** (128 and below: never in 10 s). Cost grows ~quadratically (players × entities per snapshot), so the next doubling would not fit. Differences between before and after at 8 and 64 players are noise (a p99 over 300 steps is a handful of samples); only the mean at 128 (−10 %) is a real trend.
+
+### 7. Web Worker: kept or not?
+
+Experiment: decode the incoming binary snapshots in a worker (`docs/perf/decode-worker.experiment.ts.txt`, the code is not in the build), `ArrayBuffer` transferred, decoded message structured-cloned back. Same 30 s scenario, 8 bots (`docs/perf/client-worker*.json`):
+
+|                                   | main thread busy (normal run) | JS ms | GC ms | long tasks (4× run) | frames > 16.7 ms (4× run) |
+| --------------------------------- | ----------------------------: | ----: | ----: | ------------------: | ------------------------: |
+| decode on the main thread (after) |                        29.7 % |  1636 |    65 |                   1 |                       348 |
+| decode in a Worker                |                        34.5 % |  2029 |    95 |                   5 |                       388 |
+
+**Not kept.** Decoding one ~300-byte snapshot costs microseconds, but the result is a tree of plain objects that has to be **structured-cloned** back to the main thread — more work than the decoding itself — and it adds a hop of latency to every snapshot, plus a second copy of the garbage. The main thread did not get faster, it got busier (+5 points), so the code was removed. A worker pays when the work is big and the result small (e.g. a path-finder for 1000 bots), not the other way round. Honest limit: it was measured on 2 vCPUs where the worker competes with the server and bots for the same cores.
+
+### 8. V8 notes (for the defence)
+
+- **Hidden classes and inline caches.** `new PooledShip()` always sets the same fields in the same order, so all ships share one hidden class and `drawEntity`'s `entity.pos.x` is a monomorphic inline-cache hit (one map check + one load). Objects built by `{...base(), kind: 'asteroid'}` with different key sets made those sites polymorphic; pooled classes fixed that.
+- **JIT / deopt.** Hot functions (`integrate`, `interpolateInto`) are compiled by TurboFan after enough calls with stable types; a call with a different shape (a `number` field becoming `undefined`) throws that code away (deoptimisation). Pools keep shapes stable; `sim-bench` has a 2000-step warm-up so we measure optimised code.
+- **GC.** Young generation (scavenger, fast, stops the thread ~1–2 ms) vs old generation (mark-compact, the 11–44 ms pauses above, mostly concurrent but with a stop-the-world finish). Short-lived objects are cheap to allocate but each one adds to the next scavenge; a pool moves objects out of that cycle.
 
 ## Lab 06 — TypeScript for the protocol and the simulation
 
@@ -1056,6 +1200,16 @@ must compute the same result from the same inputs, and for collisions (a 250 ms 
 through a wall).
 
 ## Lab status
+
+**Lab 07**
+
+- [x] Vitest in shared / client / server (263 tests), shared coverage 94 % (gate 85 %)
+- [x] 11 fast-check properties; fake-timer tests for the loop, the ticker and the rate limit
+- [x] Playwright: two browsers in one room (movement + chat); GitHub Actions + CI badge
+- [x] 8 bots (same input as a human), frame p50/p95/p99, GC pauses, allocators, flame charts before/after
+- [x] Pools for bullets and particles, no per-frame allocation in the render path
+- [x] Spatial hash (measured; the server uses it), Web Worker experiment (measured, not kept)
+- [x] Load script 8 → 250 players, graph (tag `lab-07`)
 
 **Lab 01**
 

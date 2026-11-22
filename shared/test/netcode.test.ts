@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { Game } from '../src/game.ts';
 import { createShip, integrate } from '../src/ship.ts';

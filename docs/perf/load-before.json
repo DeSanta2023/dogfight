@@ -1,0 +1,61 @@
+{
+  "label": "before",
+  "budgetMs": 33.333333333333336,
+  "seconds": 10,
+  "rows": [
+    {
+      "players": 8,
+      "joined": 8,
+      "hz": 29.99,
+      "skippedTicks": 0,
+      "simMeanMs": 0.152,
+      "stepMeanMs": 0.547,
+      "stepP50Ms": 0.484,
+      "stepP99Ms": 1.906,
+      "stepMaxMs": 4.824,
+      "overBudget": false,
+      "rssMb": 114
+    },
+    {
+      "players": 32,
+      "joined": 32,
+      "hz": 29.93,
+      "skippedTicks": 0,
+      "simMeanMs": 0.288,
+      "stepMeanMs": 1.385,
+      "stepP50Ms": 1.232,
+      "stepP99Ms": 3.409,
+      "stepMaxMs": 6.047,
+      "overBudget": false,
+      "rssMb": 117
+    },
+    {
+      "players": 64,
+      "joined": 64,
+      "hz": 29.97,
+      "skippedTicks": 0,
+      "simMeanMs": 0.465,
+      "stepMeanMs": 3.138,
+      "stepP50Ms": 3.032,
+      "stepP99Ms": 6.935,
+      "stepMaxMs": 11.003,
+      "overBudget": false,
+      "rssMb": 120
+    },
+    {
+      "players": 128,
+      "joined": 128,
+      "hz": 29.96,
+      "skippedTicks": 0,
+      "simMeanMs": 0.926,
+      "stepMeanMs": 8.007,
+      "stepP50Ms": 7.978,
+      "stepP99Ms": 13.423,
+      "stepMaxMs": 19.794,
+      "overBudget": false,
+      "rssMb": 157
+    }
+  ],
+  "firstOverBudget": null,
+  "firstP99OverBudget": null
+}

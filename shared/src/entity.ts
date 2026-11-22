@@ -84,7 +84,8 @@ export class Entity {
   }
 
   move(dt: number): void {
-    this.pos = this.pos.add(this.vel.scale(dt));
+    // one Vector2 instead of two (the old add(scale()) built an intermediate); same arithmetic
+    this.pos = new Vector2(this.pos.x + this.vel.x * dt, this.pos.y + this.vel.y * dt);
   }
 
   runBehaviors(dt: number): void {
@@ -99,6 +100,12 @@ export class Entity {
   hasBehavior(name: string): boolean {
     return this.behaviors.some((b) => b.name === name);
   }
+
+  /**
+   * Called by World when it removes a dead entity. Pooled kinds (Bullet, Explosion) give their
+   * resources back here. Nothing may keep using the entity after this.
+   */
+  recycle(): void {}
 
   /** Called by World for every colliding pair, once per side. Default: ignore. */
   onCollide(_other: Entity): void {}

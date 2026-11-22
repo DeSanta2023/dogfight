@@ -173,6 +173,13 @@ export const PRESETS: readonly RoomSpec[] = [
     arena: { asteroids: 10, pickups: true, hunterChance: 1, seed: 303 },
   },
   {
+    // Lab 07: room for a human plus the profiling bots (perf/bots.mjs).
+    id: 'melee',
+    name: 'Melee (16 players)',
+    maxPlayers: 16,
+    arena: { asteroids: 12, pickups: true, hunterChance: 0.3, seed: 505 },
+  },
+  {
     id: 'duel',
     name: 'Duel (2 players)',
     maxPlayers: 2,

@@ -7,6 +7,7 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,5 +18,19 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run format:check
-      - run: npm test
+      - name: Unit + property tests (Vitest), shared/ coverage gate 85 %
+        run: |
+          npm test
+          npm run coverage
       - run: npm run build
+      - name: Install the browser for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: End-to-end, two browsers in one room
+        run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results

@@ -21,8 +21,24 @@ export class World {
   #entities = new Map<EntityId, Entity>();
   #events: WorldEvent[] = [];
   #scratch: Entity[] = []; // reused every step: no per-step array allocation
+  #living: Entity[] = []; // same idea: the live entities handed to the collision system
   #collide: CollisionSystem;
   #nextId = 1; // ids are per WORLD, so two worlds that do the same things agree on every id
+
+  readonly #collectAll = (entity: Entity): void => void this.#scratch.push(entity);
+  #snapshotList: Entity[] = [];
+  readonly #collectForSnapshot = (entity: Entity): void => {
+    if (entity.alive) this.#snapshotList.push(entity);
+  };
+  readonly #collectLiving = (entity: Entity): void => {
+    if (entity.alive) this.#living.push(entity);
+  };
+  readonly #sweepOne = (entity: Entity, id: EntityId): void => {
+    if (!entity.alive) {
+      this.#entities.delete(id);
+      entity.recycle();
+    }
+  };
 
   constructor({ collide = findCollisions }: { collide?: CollisionSystem } = {}) {
     this.#collide = collide; // swappable collision system
@@ -61,6 +77,27 @@ export class World {
     for (const entity of this) if (isKind(entity, kind)) yield entity;
   }
 
+  /**
+   * The live entities as an array in spawn order. The array is REUSED: it is valid until the next
+   * call, do not keep it. `for (const e of world)` makes a generator and a {value, done} object per
+   * entity; with 128 players the server captured a snapshot per player per tick and that showed up
+   * as the 3rd biggest line of the CPU profile.
+   */
+  liveEntities(): readonly Entity[] {
+    this.#snapshotList.length = 0;
+    this.#entities.forEach(this.#collectForSnapshot);
+    return this.#snapshotList;
+  }
+
+  /** How many live entities of a kind (no generator, no array: it is called every tick). */
+  countOf(kind: EntityKind): number {
+    let n = 0;
+    this.#entities.forEach((entity) => {
+      if (entity.alive && entity.kind === kind) n++;
+    });
+    return n;
+  }
+
   emit(event: WorldEvent): void {
     this.#events.push(event);
   }
@@ -79,9 +116,11 @@ export class World {
   step(dt: number, inputs: ReadonlyMap<EntityId, InputSource> = NO_INPUTS): void {
     // Iterate a reused snapshot of the entities: things spawned during the pass (bullets)
     // start updating next step instead of being visited halfway through this one.
+    // Map.forEach with callbacks made ONCE (see the constructor): `for...of map.values()` makes an
+    // iterator and a {value, done} object per entity per step, forEach makes none.
     const batch = this.#scratch;
     batch.length = 0;
-    for (const entity of this.#entities.values()) batch.push(entity);
+    this.#entities.forEach(this.#collectAll);
 
     for (const entity of batch) {
       if (!entity.alive) continue;
@@ -90,14 +129,17 @@ export class World {
       applyEdge(entity);
     }
 
-    for (const [a, b] of this.#collide(this)) {
+    // An array, not the generator above: iterating a generator makes a {value, done} object per
+    // entity per step (Lab 07: `next` was the 2nd biggest allocator of the whole simulation).
+    const living = this.#living;
+    living.length = 0;
+    this.#entities.forEach(this.#collectLiving);
+    for (const [a, b] of this.#collide(living)) {
       if (!a.alive || !b.alive) continue;
       a.onCollide(b);
       if (a.alive && b.alive) b.onCollide(a);
     }
 
-    for (const [id, entity] of this.#entities) {
-      if (!entity.alive) this.#entities.delete(id);
-    }
+    this.#entities.forEach(this.#sweepOne); // deleting while iterating a Map is allowed
   }
 }

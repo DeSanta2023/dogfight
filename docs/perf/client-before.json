@@ -1,0 +1,169 @@
+{
+  "label": "before",
+  "seconds": 30,
+  "bots": 8,
+  "query": "",
+  "environment": {
+    "cpus": 2,
+    "node": "v22.23.5",
+    "browser": "157.0.8103.78"
+  },
+  "throttle": 1,
+  "frame": {
+    "frames": 1800,
+    "fps": 60,
+    "p50": 16.7,
+    "p95": 16.7,
+    "p99": 16.8,
+    "max": 16.8,
+    "over16_7": 0,
+    "over33": 0,
+    "longTasks": 0,
+    "longTaskMaxMs": 0
+  },
+  "cpu": {
+    "idleMs": 21879,
+    "gcMs": 66,
+    "nativeMs": 6413,
+    "jsMs": 1686,
+    "busyPct": 27.2
+  },
+  "gc": {
+    "minor": {
+      "count": 46,
+      "totalMs": 61.33,
+      "maxMs": 2.27
+    },
+    "major": {
+      "count": 4,
+      "totalMs": 34.88,
+      "maxMs": 11.32
+    },
+    "eventNamesSeen": [
+      "V8.GC_TIME_TO_SAFEPOINT",
+      "V8.GC_HEAP_ENSURE_SWEEPING_COMPLETED",
+      "V8.GC_HEAP_EXTERNAL_PROLOGUE",
+      "MinorGC",
+      "V8.GC_HEAP_PROLOGUE",
+      "V8.GCScavenger",
+      "V8.GC_SCAVENGER",
+      "V8.GC_HEAP_PROLOGUE_SAFEPOINT",
+      "V8.GC_SCAVENGER_SCAVENGE",
+      "V8.GC_SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY",
+      "V8.GC_SCAVENGER_TRACED_HANDLES_COMPUTE_WEAKNESS_PARALLEL",
+      "V8.GC_SCAVENGER_SCAVENGE_COLLECT_OLD_TO_NEW_PAGES"
+    ]
+  },
+  "allocatedSampledKb": 58142,
+  "topAllocators": [
+    {
+      "fn": "interpolateEntity index-D5GNexxr.js:6892",
+      "kb": 6549,
+      "pct": 11.3
+    },
+    {
+      "fn": "#viewWorld index-D5GNexxr.js:8191",
+      "kb": 4893,
+      "pct": 8.4
+    },
+    {
+      "fn": "drawArena index-D5GNexxr.js:6791",
+      "kb": 4809,
+      "pct": 8.3
+    },
+    {
+      "fn": "bullet index-D5GNexxr.js:8331",
+      "kb": 4608,
+      "pct": 7.9
+    },
+    {
+      "fn": "drawShip index-D5GNexxr.js:7018",
+      "kb": 3570,
+      "pct": 6.1
+    },
+    {
+      "fn": "drawEntity index-D5GNexxr.js:6932",
+      "kb": 3136,
+      "pct": 5.4
+    },
+    {
+      "fn": "ship index-D5GNexxr.js:8323",
+      "kb": 3007,
+      "pct": 5.2
+    },
+    {
+      "fn": "drawCallsigns index-D5GNexxr.js:9882",
+      "kb": 2177,
+      "pct": 3.7
+    },
+    {
+      "fn": "drawNetgraph index-D5GNexxr.js:7353",
+      "kb": 2061,
+      "pct": 3.5
+    },
+    {
+      "fn": "render index-D5GNexxr.js:9897",
+      "kb": 1815,
+      "pct": 3.1
+    }
+  ],
+  "topCpu": [
+    {
+      "fn": "(program) :0",
+      "ms": 6413.3,
+      "pct": 78.5
+    },
+    {
+      "fn": "fillText :0",
+      "ms": 279.8,
+      "pct": 3.4
+    },
+    {
+      "fn": "requestAnimationFrame :0",
+      "ms": 125.7,
+      "pct": 1.5
+    },
+    {
+      "fn": "drawImage :0",
+      "ms": 97.6,
+      "pct": 1.2
+    },
+    {
+      "fn": "save :0",
+      "ms": 90.8,
+      "pct": 1.1
+    },
+    {
+      "fn": "fill :0",
+      "ms": 75.6,
+      "pct": 0.9
+    },
+    {
+      "fn": "send :0",
+      "ms": 71.1,
+      "pct": 0.9
+    },
+    {
+      "fn": "(garbage collector) :0",
+      "ms": 66.1,
+      "pct": 0.8
+    },
+    {
+      "fn": "drawArena index-D5GNexxr.js:6791",
+      "ms": 48,
+      "pct": 0.6
+    },
+    {
+      "fn": "#viewWorld index-D5GNexxr.js:8191",
+      "ms": 40.2,
+      "pct": 0.5
+    }
+  ],
+  "botState": {
+    "failed": 0,
+    "closed": 0,
+    "snapshots": 8328,
+    "bytes": 2566279,
+    "stillJoined": 8
+  }
+}

@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
@@ -42,9 +42,8 @@ const NO_SIGNALS =
 
 const SIGNALS: NodeJS.Signals[] = ['SIGINT', 'SIGTERM'];
 for (const signal of SIGNALS) {
-  test(
+  test.skipIf(Boolean(NO_SIGNALS))(
     `${signal}: sockets are closed, the log is written, the process exits with code 0`,
-    { skip: NO_SIGNALS },
     async () => {
       const dir = await mkdtemp(join(tmpdir(), 'dogfight-proc-'));
       const s = start({ PORT: '0', LOG_DIR: dir, SHUTDOWN_GRACE_MS: '1000' });

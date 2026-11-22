@@ -1,0 +1,14 @@
+/// <reference lib="webworker" />
+// Lab 07 experiment: decode the binary snapshots OFF the main thread.
+// In:  an ArrayBuffer (transferred, not copied).  Out: { message, size } (structured-cloned).
+// The result of the experiment is in the README ("Web Worker: kept or not?").
+import { decodeServer } from '@dogfight/shared/codec.ts';
+
+self.onmessage = (event: MessageEvent<{ data: ArrayBuffer; size: number }>) => {
+  const { data, size } = event.data;
+  try {
+    (self as unknown as Worker).postMessage({ message: decodeServer(data), size });
+  } catch {
+    (self as unknown as Worker).postMessage({ bad: true, size });
+  }
+};

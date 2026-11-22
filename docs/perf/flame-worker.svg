@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="248" viewBox="0 0 1400 248" font-family="ui-monospace,Menlo,Consolas,monospace">
+<rect width="1400" height="248" fill="#fff"/>
+<text x="6" y="20" font-size="15" font-family="system-ui,sans-serif" font-weight="600">Browser CPU flame chart: worker (30 s, 8 bots + 1 player)</text>
+<text x="6" y="36" font-size="11" fill="#555">width = share of busy CPU time (idle removed) · 10372 ms in total · row = call depth · hover for details</text>
+<g><title>(program) :0 — 8248.5 ms (79.5%)</title><rect x="0.0" y="44" width="1112.9" height="17" fill="hsl(47 87% 57%)"/><text x="3.0" y="56" font-size="11" clip-path="inset(0)">(program)</text></g>
+<g><title>(anonymous) index-CbmmMYp_.js:9811 — 110.3 ms (1.1%)</title><rect x="1113.4" y="44" width="14.4" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>receive index-CbmmMYp_.js:8185 — 50.6 ms (0.5%)</title><rect x="1113.4" y="62" width="6.3" height="17" fill="hsl(45 85% 65%)"/></g>
+<g><title>deliver index-CbmmMYp_.js:7872 — 49.6 ms (0.5%)</title><rect x="1113.4" y="80" width="6.2" height="17" fill="hsl(31 71% 61%)"/></g>
+<g><title>(anonymous) index-CbmmMYp_.js:8187 — 49.4 ms (0.5%)</title><rect x="1113.4" y="98" width="6.2" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>#handle index-CbmmMYp_.js:8189 — 48.4 ms (0.5%)</title><rect x="1113.4" y="116" width="6.0" height="17" fill="hsl(13 73% 58%)"/></g>
+<g><title>#onSnapshot index-CbmmMYp_.js:8218 — 32.9 ms (0.3%)</title><rect x="1113.4" y="134" width="3.9" height="17" fill="hsl(24 84% 64%)"/></g>
+<g><title>frame index-CbmmMYp_.js:64 — 1591.4 ms (15.3%)</title><rect x="1128.2" y="44" width="214.3" height="17" fill="hsl(23 83% 68%)"/><text x="1131.2" y="56" font-size="11" clip-path="inset(0)">frame</text></g>
+<g><title>render index-CbmmMYp_.js:10166 — 1175.8 ms (11.3%)</title><rect x="1128.2" y="62" width="158.2" height="17" fill="hsl(40 80% 65%)"/><text x="1131.2" y="74" font-size="11" clip-path="inset(0)">render</text></g>
+<g><title>drawEntity index-CbmmMYp_.js:7096 — 313.0 ms (3.0%)</title><rect x="1128.2" y="80" width="41.8" height="17" fill="hsl(33 73% 58%)"/><text x="1131.2" y="92" font-size="11" clip-path="inset(0)">drawEn</text></g>
+<g><title>draw index-CbmmMYp_.js:7205 — 234.3 ms (2.3%)</title><rect x="1128.2" y="98" width="31.1" height="17" fill="hsl(30 70% 65%)"/></g>
+<g><title>drawShip index-CbmmMYp_.js:7181 — 95.0 ms (0.9%)</title><rect x="1128.2" y="116" width="12.3" height="17" fill="hsl(10 70% 60%)"/></g>
+<g><title>blit index-CbmmMYp_.js:7168 — 80.4 ms (0.8%)</title><rect x="1128.2" y="134" width="10.4" height="17" fill="hsl(47 87% 62%)"/></g>
+<g><title>save :0 — 30.8 ms (0.3%)</title><rect x="1128.2" y="152" width="3.7" height="17" fill="hsl(31 71% 66%)"/></g>
+<g><title>drawImage :0 — 33.0 ms (0.3%)</title><rect x="1133.0" y="152" width="4.0" height="17" fill="hsl(49 89% 69%)"/></g>
+<g><title>blit index-CbmmMYp_.js:7168 — 111.0 ms (1.1%)</title><rect x="1141.1" y="116" width="14.5" height="17" fill="hsl(47 87% 62%)"/></g>
+<g><title>drawImage :0 — 39.5 ms (0.4%)</title><rect x="1141.1" y="134" width="4.8" height="17" fill="hsl(49 89% 69%)"/></g>
+<g><title>save :0 — 50.8 ms (0.5%)</title><rect x="1146.4" y="134" width="6.4" height="17" fill="hsl(31 71% 66%)"/></g>
+<g><title>interpolateInto index-CbmmMYp_.js:7044 — 25.7 ms (0.2%)</title><rect x="1159.9" y="98" width="3.0" height="17" fill="hsl(43 83% 58%)"/></g>
+<g><title>fillRect :0 — 12.2 ms (0.1%)</title><rect x="1163.3" y="98" width="1.1" height="17" fill="hsl(41 81% 66%)"/></g>
+<g><title>view index-CbmmMYp_.js:8435 — 107.2 ms (1.0%)</title><rect x="1170.5" y="80" width="14.0" height="17" fill="hsl(23 83% 63%)"/></g>
+<g><title>#viewWorld index-CbmmMYp_.js:8489 — 82.9 ms (0.8%)</title><rect x="1170.5" y="98" width="10.7" height="17" fill="hsl(28 88% 58%)"/></g>
+<g><title>#index index-CbmmMYp_.js:8449 — 36.5 ms (0.4%)</title><rect x="1170.5" y="116" width="4.4" height="17" fill="hsl(41 81% 56%)"/></g>
+<g><title>drawScreen index-CbmmMYp_.js:7464 — 64.6 ms (0.6%)</title><rect x="1185.0" y="80" width="8.2" height="17" fill="hsl(34 74% 59%)"/></g>
+<g><title>fillText :0 — 18.8 ms (0.2%)</title><rect x="1185.0" y="98" width="2.0" height="17" fill="hsl(34 74% 59%)"/></g>
+<g><title>drawNetgraph index-CbmmMYp_.js:7516 — 225.3 ms (2.2%)</title><rect x="1193.7" y="80" width="29.9" height="17" fill="hsl(15 75% 60%)"/></g>
+<g><title>(anonymous) index-CbmmMYp_.js:7538 — 136.0 ms (1.3%)</title><rect x="1193.7" y="98" width="17.9" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>fillText :0 — 119.1 ms (1.1%)</title><rect x="1193.7" y="116" width="15.6" height="17" fill="hsl(34 74% 59%)"/></g>
+<g><title>spark index-CbmmMYp_.js:7501 — 49.8 ms (0.5%)</title><rect x="1212.0" y="98" width="6.2" height="17" fill="hsl(15 75% 60%)"/></g>
+<g><title>stroke :0 — 13.6 ms (0.1%)</title><rect x="1212.0" y="116" width="1.3" height="17" fill="hsl(34 74% 59%)"/></g>
+<g><title>(anonymous) index-CbmmMYp_.js:7508 — 11.8 ms (0.1%)</title><rect x="1213.9" y="116" width="1.1" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>lineTo :0 — 10.4 ms (0.1%)</title><rect x="1213.9" y="134" width="0.9" height="17" fill="hsl(49 89% 59%)"/></g>
+<g><title>drawCallsigns index-CbmmMYp_.js:10151 — 112.2 ms (1.1%)</title><rect x="1224.1" y="80" width="14.6" height="17" fill="hsl(22 82% 62%)"/></g>
+<g><title>fillText :0 — 55.0 ms (0.5%)</title><rect x="1224.1" y="98" width="6.9" height="17" fill="hsl(34 74% 59%)"/></g>
+<g><title>drawHud index-CbmmMYp_.js:7022 — 167.0 ms (1.6%)</title><rect x="1239.2" y="80" width="22.0" height="17" fill="hsl(13 73% 63%)"/></g>
+<g><title>(anonymous) index-CbmmMYp_.js:7037 — 146.0 ms (1.4%)</title><rect x="1239.2" y="98" width="19.2" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>fillText :0 — 139.0 ms (1.3%)</title><rect x="1239.2" y="116" width="18.3" height="17" fill="hsl(34 74% 59%)"/></g>
+<g><title>drawArena index-CbmmMYp_.js:6955 — 77.4 ms (0.7%)</title><rect x="1261.8" y="80" width="10.0" height="17" fill="hsl(13 73% 58%)"/></g>
+<g><title>drawImage :0 — 59.0 ms (0.6%)</title><rect x="1261.8" y="98" width="7.5" height="17" fill="hsl(49 89% 69%)"/></g>
+<g><title>getTransform :0 — 11.9 ms (0.1%)</title><rect x="1269.7" y="98" width="1.1" height="17" fill="hsl(32 72% 67%)"/></g>
+<g><title>drawWorld index-CbmmMYp_.js:7449 — 18.1 ms (0.2%)</title><rect x="1272.2" y="80" width="1.9" height="17" fill="hsl(16 76% 61%)"/></g>
+<g><title>begin index-CbmmMYp_.js:6893 — 17.0 ms (0.2%)</title><rect x="1274.7" y="80" width="1.8" height="17" fill="hsl(27 87% 62%)"/></g>
+<g><title>clearRect :0 — 13.3 ms (0.1%)</title><rect x="1274.7" y="98" width="1.3" height="17" fill="hsl(35 75% 55%)"/></g>
+<g><title>save :0 — 10.1 ms (0.1%)</title><rect x="1277.8" y="80" width="0.9" height="17" fill="hsl(31 71% 66%)"/></g>
+<g><title>simulate index-CbmmMYp_.js:10132 — 336.1 ms (3.2%)</title><rect x="1286.9" y="62" width="44.9" height="17" fill="hsl(14 74% 59%)"/><text x="1289.9" y="74" font-size="11" clip-path="inset(0)">simulat</text></g>
+<g><title>step index-CbmmMYp_.js:8120 — 310.3 ms (3.0%)</title><rect x="1286.9" y="80" width="41.4" height="17" fill="hsl(14 74% 64%)"/><text x="1289.9" y="92" font-size="11" clip-path="inset(0)">step</text></g>
+<g><title>#releaseEvents index-CbmmMYp_.js:8330 — 91.1 ms (0.9%)</title><rect x="1286.9" y="98" width="11.8" height="17" fill="hsl(15 75% 60%)"/></g>
+<g><title>#playEvent index-CbmmMYp_.js:8338 — 77.4 ms (0.7%)</title><rect x="1286.9" y="116" width="10.0" height="17" fill="hsl(21 81% 66%)"/></g>
+<g><title>emit index-CbmmMYp_.js:6591 — 70.8 ms (0.7%)</title><rect x="1286.9" y="134" width="9.1" height="17" fill="hsl(21 81% 66%)"/></g>
+<g><title>(anonymous) index-CbmmMYp_.js:7363 — 51.5 ms (0.5%)</title><rect x="1286.9" y="152" width="6.5" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>play index-CbmmMYp_.js:7341 — 47.6 ms (0.5%)</title><rect x="1286.9" y="170" width="5.9" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>createBufferSource :0 — 25.8 ms (0.2%)</title><rect x="1286.9" y="188" width="3.0" height="17" fill="hsl(25 85% 55%)"/></g>
+<g><title>createGain :0 — 9.0 ms (0.1%)</title><rect x="1290.4" y="188" width="0.7" height="17" fill="hsl(21 81% 61%)"/></g>
+<g><title>(anonymous) index-CbmmMYp_.js:7367 — 11.5 ms (0.1%)</title><rect x="1293.9" y="152" width="1.1" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>play index-CbmmMYp_.js:7341 — 11.5 ms (0.1%)</title><rect x="1293.9" y="170" width="1.1" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>#renderTime index-CbmmMYp_.js:8407 — 10.6 ms (0.1%)</title><rect x="1297.4" y="116" width="0.9" height="17" fill="hsl(48 88% 58%)"/></g>
+<g><title>#transmit index-CbmmMYp_.js:8150 — 124.3 ms (1.2%)</title><rect x="1299.2" y="98" width="16.3" height="17" fill="hsl(45 85% 65%)"/></g>
+<g><title>deliver index-CbmmMYp_.js:7872 — 123.3 ms (1.2%)</title><rect x="1299.2" y="116" width="16.1" height="17" fill="hsl(31 71% 61%)"/></g>
+<g><title>(anonymous) index-CbmmMYp_.js:8152 — 122.1 ms (1.2%)</title><rect x="1299.2" y="134" width="16.0" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>send index-CbmmMYp_.js:9896 — 120.6 ms (1.2%)</title><rect x="1299.2" y="152" width="15.8" height="17" fill="hsl(26 86% 61%)"/></g>
+<g><title>sendGame index-CbmmMYp_.js:9671 — 120.1 ms (1.2%)</title><rect x="1299.2" y="170" width="15.7" height="17" fill="hsl(36 76% 56%)"/></g>
+<g><title>sendRaw index-CbmmMYp_.js:9542 — 120.1 ms (1.2%)</title><rect x="1299.2" y="188" width="15.7" height="17" fill="hsl(10 70% 65%)"/></g>
+<g><title>send :0 — 118.6 ms (1.1%)</title><rect x="1299.2" y="206" width="15.5" height="17" fill="hsl(26 86% 61%)"/></g>
+<g><title>encodeInput index-CbmmMYp_.js:7657 — 18.2 ms (0.2%)</title><rect x="1316.0" y="98" width="2.0" height="17" fill="hsl(46 86% 66%)"/></g>
+<g><title>Writer index-CbmmMYp_.js:7591 — 13.6 ms (0.1%)</title><rect x="1316.0" y="116" width="1.3" height="17" fill="hsl(37 77% 62%)"/></g>
+<g><title>step index-CbmmMYp_.js:6556 — 31.5 ms (0.3%)</title><rect x="1318.5" y="98" width="3.8" height="17" fill="hsl(14 74% 64%)"/></g>
+<g><title>update index-CbmmMYp_.js:6247 — 18.1 ms (0.2%)</title><rect x="1318.5" y="116" width="1.9" height="17" fill="hsl(43 83% 68%)"/></g>
+<g><title>integrate index-CbmmMYp_.js:6308 — 13.4 ms (0.1%)</title><rect x="1322.7" y="98" width="1.3" height="17" fill="hsl(43 83% 63%)"/></g>
+<g><title>bitsFromInput index-CbmmMYp_.js:7848 — 9.0 ms (0.1%)</title><rect x="1328.8" y="80" width="0.7" height="17" fill="hsl(20 80% 55%)"/></g>
+<g><title>requestAnimationFrame :0 — 31.9 ms (0.3%)</title><rect x="1332.3" y="62" width="3.8" height="17" fill="hsl(42 82% 67%)"/></g>
+<g><title>(anonymous) index-CbmmMYp_.js:9467 — 185.3 ms (1.8%)</title><rect x="1343.3" y="44" width="24.5" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>emit index-CbmmMYp_.js:8811 — 150.2 ms (1.4%)</title><rect x="1343.3" y="62" width="19.8" height="17" fill="hsl(21 81% 66%)"/></g>
+<g><title>dispatchEvent :0 — 129.0 ms (1.2%)</title><rect x="1343.3" y="80" width="16.9" height="17" fill="hsl(26 86% 56%)"/></g>
+<g><title>handler index-CbmmMYp_.js:8816 — 113.2 ms (1.1%)</title><rect x="1343.3" y="98" width="14.8" height="17" fill="hsl(12 72% 62%)"/></g>
+<g><title>(anonymous) index-CbmmMYp_.js:9640 — 113.2 ms (1.1%)</title><rect x="1343.3" y="116" width="14.8" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>emit index-CbmmMYp_.js:8811 — 112.1 ms (1.1%)</title><rect x="1343.3" y="134" width="14.6" height="17" fill="hsl(21 81% 66%)"/></g>
+<g><title>dispatchEvent :0 — 110.3 ms (1.1%)</title><rect x="1343.3" y="152" width="14.4" height="17" fill="hsl(26 86% 56%)"/></g>
+<g><title>handler index-CbmmMYp_.js:8816 — 93.8 ms (0.9%)</title><rect x="1343.3" y="170" width="12.2" height="17" fill="hsl(12 72% 62%)"/></g>
+<g><title>(anonymous) index-CbmmMYp_.js:10079 — 93.2 ms (0.9%)</title><rect x="1343.3" y="188" width="12.1" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>postMessage :0 — 81.6 ms (0.8%)</title><rect x="1343.3" y="206" width="10.5" height="17" fill="hsl(33 73% 58%)"/></g>
+<g><title>tick :7 — 138.2 ms (1.3%)</title><rect x="1368.3" y="44" width="18.2" height="17" fill="hsl(47 87% 62%)"/></g>
+<g><title>requestAnimationFrame :0 — 107.6 ms (1.0%)</title><rect x="1368.3" y="62" width="14.0" height="17" fill="hsl(42 82% 67%)"/></g>
+<g><title>(garbage collector) :0 — 95.1 ms (0.9%)</title><rect x="1387.0" y="44" width="12.3" height="17" fill="hsl(25 85% 65%)"/></g>
+</svg>

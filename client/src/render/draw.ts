@@ -25,7 +25,16 @@ export function applyWorldTransform(
   return { scale, ox, oy };
 }
 
-export function drawArena(ctx: CanvasRenderingContext2D): void {
+/**
+ * The background never changes: 140 stars, a grid, a frame. Drawing it as ~170 path operations 60
+ * times a second was one of the biggest allocators in the heap profile (every beginPath/arc makes
+ * garbage inside Chrome). Lab 07: paint it ONCE into an offscreen canvas, then blit it each frame
+ * with a single drawImage. The cache is rebuilt only when the on-screen scale changes (resize).
+ */
+let backdrop: HTMLCanvasElement | null = null;
+let backdropScale = 0;
+
+function paintArena(ctx: CanvasRenderingContext2D): void {
   ctx.fillStyle = '#080c1a';
   ctx.fillRect(0, 0, ARENA.width, ARENA.height);
 
@@ -55,6 +64,22 @@ export function drawArena(ctx: CanvasRenderingContext2D): void {
   ctx.strokeStyle = 'rgba(120, 200, 255, 0.5)';
   ctx.lineWidth = 2;
   ctx.strokeRect(0, 0, ARENA.width, ARENA.height);
+}
+
+export function drawArena(ctx: CanvasRenderingContext2D): void {
+  const scale = ctx.getTransform().a || 1;
+  if (typeof document === 'undefined') return paintArena(ctx); // no DOM (tests): draw directly
+  if (!backdrop || Math.abs(scale - backdropScale) > 1e-6) {
+    backdrop ??= document.createElement('canvas');
+    backdrop.width = Math.ceil(ARENA.width * scale);
+    backdrop.height = Math.ceil(ARENA.height * scale);
+    const bctx = backdrop.getContext('2d');
+    if (!bctx) return paintArena(ctx);
+    bctx.scale(scale, scale);
+    paintArena(bctx);
+    backdropScale = scale;
+  }
+  ctx.drawImage(backdrop, 0, 0, ARENA.width, ARENA.height);
 }
 
 /** Draw the ship at the origin pointing right (+x), then move/rotate the canvas to place it. */
@@ -91,15 +116,16 @@ export function drawShip(
   { blink = false, shield = false }: { blink?: boolean; shield?: boolean } = {},
 ): void {
   const margin = 20;
-  const xs = [0];
-  const ys = [0];
-  if (ship.x < margin) xs.push(ARENA.width);
-  if (ship.x > ARENA.width - margin) xs.push(-ARENA.width);
-  if (ship.y < margin) ys.push(ARENA.height);
-  if (ship.y > ARENA.height - margin) ys.push(-ARENA.height);
+  // The ghost copy's offset (0 = none). Two small arrays per ship per frame were garbage: counters.
+  const ex =
+    ship.x < margin ? ARENA.width : ship.x > ARENA.width - margin ? -ARENA.width : 0;
+  const ey =
+    ship.y < margin ? ARENA.height : ship.y > ARENA.height - margin ? -ARENA.height : 0;
 
-  for (const dx of xs) {
-    for (const dy of ys) {
+  for (let i = 0; i <= (ex !== 0 ? 1 : 0); i++) {
+    const dx = i === 0 ? 0 : ex;
+    for (let j = 0; j <= (ey !== 0 ? 1 : 0); j++) {
+      const dy = j === 0 ? 0 : ey;
       ctx.save();
       ctx.translate(ship.x + dx, ship.y + dy);
       ctx.rotate(ship.angle);

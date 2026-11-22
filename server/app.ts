@@ -5,7 +5,7 @@ import { createMatchLog, type LogEvent, type MatchLog } from './log/matchlog.ts'
 import type { Config } from './config.ts';
 import type { Logger } from './logger.ts';
 import { toError } from './errors.ts';
-import { RoomManager } from './rooms.ts';
+import { RoomManager, type RoomSpec } from './rooms.ts';
 import { attachWebSocket } from './ws.ts';
 
 /**
@@ -19,10 +19,16 @@ import { attachWebSocket } from './ws.ts';
 export interface AppDeps {
   config: Config;
   logger: Logger;
+  /** Lab 07: the load test needs rooms for 128 players; normal code uses the PRESETS. */
+  presets?: readonly RoomSpec[];
 }
 
-export function createApp({ config, logger }: AppDeps) {
-  const rooms = new RoomManager({ maxRooms: config.maxRooms, idleMs: config.roomIdleMs });
+export function createApp({ config, logger, presets }: AppDeps) {
+  const rooms = new RoomManager({
+    maxRooms: config.maxRooms,
+    idleMs: config.roomIdleMs,
+    ...(presets && { presets }),
+  });
   const logs = new Map<string, MatchLog>(); // roomId -> match log
   const pendingLogs = new Set<Promise<void>>(); // logs that are being closed: shutdown waits for them
   const closers = new Map<string, () => Promise<void>>(); // roomId -> finishes that room's log

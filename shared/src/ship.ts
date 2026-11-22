@@ -59,8 +59,13 @@ export const physicsHooks: { afterIntegrate: ((state: ShipState) => ShipState) |
     afterIntegrate: null,
   };
 
-const anyDown = (input: InputSource, codes: readonly string[]): boolean =>
-  codes.some((c) => input.isDown(c));
+// A plain loop, not `codes.some((c) => input.isDown(c))`: that creates a closure on every call and
+// this runs 4 times per ship per tick (Lab 07: it was the biggest allocator of the simulation).
+function anyDown(input: InputSource, codes: readonly string[]): boolean {
+  for (let i = 0; i < codes.length; i++)
+    if (input.isDown(codes[i] as string)) return true;
+  return false;
+}
 
 /**
  * Pure physics step: (ship, input, dt) -> new ship.
@@ -89,14 +94,15 @@ export function integrate(ship: ShipState, input: InputSource, dt: number): Ship
     vy *= k;
   }
 
-  const next = wrapPosition({
-    x: ship.x + vx * dt,
-    y: ship.y + vy * dt,
+  // wrapPosition() inlined: calling it spread the state into one more throw-away object.
+  const next: ShipState = {
+    x: wrap(ship.x + vx * dt, ARENA.width),
+    y: wrap(ship.y + vy * dt, ARENA.height),
     vx,
     vy,
     angle,
     thrust,
-  });
+  };
   return physicsHooks.afterIntegrate ? physicsHooks.afterIntegrate(next) : next;
 }
 
@@ -229,7 +235,7 @@ export class Ship extends Entity {
     this.#cooldown = this.hasEffect('rapid') ? SHIP.rapidCooldown : SHIP.fireCooldown;
 
     const heading = Vector2.fromAngle(this.angle);
-    const bullet = new Bullet({
+    const bullet = Bullet.acquire({
       pos: this.pos.add(heading.scale(this.radius + 4)),
       vel: this.vel.add(heading.scale(SHIP.bulletSpeed)),
       angle: this.angle,

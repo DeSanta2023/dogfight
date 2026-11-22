@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="356" viewBox="0 0 1400 356" font-family="ui-monospace,Menlo,Consolas,monospace">
+<rect width="1400" height="356" fill="#fff"/>
+<text x="6" y="20" font-size="15" font-family="system-ui,sans-serif" font-weight="600">Browser CPU flame chart: before (30 s, 8 bots + 1 player)</text>
+<text x="6" y="36" font-size="11" fill="#555">width = share of busy CPU time (idle removed) · 8165 ms in total · row = call depth · hover for details</text>
+<g><title>(program) :0 — 6413.3 ms (78.5%)</title><rect x="0.0" y="44" width="1099.2" height="17" fill="hsl(47 87% 57%)"/><text x="3.0" y="56" font-size="11" clip-path="inset(0)">(program)</text></g>
+<g><title>frame index-D5GNexxr.js:64 — 1378.9 ms (16.9%)</title><rect x="1099.7" y="44" width="235.9" height="17" fill="hsl(23 83% 68%)"/><text x="1102.7" y="56" font-size="11" clip-path="inset(0)">frame</text></g>
+<g><title>simulate index-D5GNexxr.js:9863 — 234.8 ms (2.9%)</title><rect x="1099.7" y="62" width="39.8" height="17" fill="hsl(14 74% 59%)"/><text x="1102.7" y="74" font-size="11" clip-path="inset(0)">simula</text></g>
+<g><title>step index-D5GNexxr.js:7839 — 205.9 ms (2.5%)</title><rect x="1099.7" y="80" width="34.8" height="17" fill="hsl(14 74% 64%)"/></g>
+<g><title>#transmit index-D5GNexxr.js:7869 — 75.7 ms (0.9%)</title><rect x="1099.7" y="98" width="12.5" height="17" fill="hsl(45 85% 65%)"/></g>
+<g><title>deliver index-D5GNexxr.js:7709 — 75.0 ms (0.9%)</title><rect x="1099.7" y="116" width="12.4" height="17" fill="hsl(31 71% 61%)"/></g>
+<g><title>(anonymous) index-D5GNexxr.js:7871 — 74.3 ms (0.9%)</title><rect x="1099.7" y="134" width="12.2" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>send index-D5GNexxr.js:9635 — 72.8 ms (0.9%)</title><rect x="1099.7" y="152" width="12.0" height="17" fill="hsl(26 86% 61%)"/></g>
+<g><title>sendGame index-D5GNexxr.js:9419 — 72.8 ms (0.9%)</title><rect x="1099.7" y="170" width="12.0" height="17" fill="hsl(36 76% 56%)"/></g>
+<g><title>sendRaw index-D5GNexxr.js:9290 — 71.9 ms (0.9%)</title><rect x="1099.7" y="188" width="11.8" height="17" fill="hsl(10 70% 65%)"/></g>
+<g><title>send :0 — 71.1 ms (0.9%)</title><rect x="1099.7" y="206" width="11.7" height="17" fill="hsl(26 86% 61%)"/></g>
+<g><title>step index-D5GNexxr.js:6431 — 29.3 ms (0.4%)</title><rect x="1112.6" y="98" width="4.5" height="17" fill="hsl(14 74% 64%)"/></g>
+<g><title>#releaseEvents index-D5GNexxr.js:8049 — 40.7 ms (0.5%)</title><rect x="1118.8" y="98" width="6.5" height="17" fill="hsl(15 75% 60%)"/></g>
+<g><title>#playEvent index-D5GNexxr.js:8057 — 33.7 ms (0.4%)</title><rect x="1118.8" y="116" width="5.3" height="17" fill="hsl(21 81% 66%)"/></g>
+<g><title>emit index-D5GNexxr.js:6463 — 29.3 ms (0.4%)</title><rect x="1118.8" y="134" width="4.5" height="17" fill="hsl(21 81% 66%)"/></g>
+<g><title>(anonymous) index-D5GNexxr.js:7200 — 22.7 ms (0.3%)</title><rect x="1118.8" y="152" width="3.4" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>play index-D5GNexxr.js:7178 — 22.4 ms (0.3%)</title><rect x="1118.8" y="170" width="3.3" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>createBufferSource :0 — 10.1 ms (0.1%)</title><rect x="1118.8" y="188" width="1.2" height="17" fill="hsl(25 85% 55%)"/></g>
+<g><title>integrate index-D5GNexxr.js:6202 — 20.7 ms (0.3%)</title><rect x="1125.8" y="98" width="3.1" height="17" fill="hsl(43 83% 63%)"/></g>
+<g><title>bitsFromInput index-D5GNexxr.js:7685 — 10.3 ms (0.1%)</title><rect x="1135.0" y="80" width="1.3" height="17" fill="hsl(20 80% 55%)"/></g>
+<g><title>any index-D5GNexxr.js:7686 — 7.3 ms (0.1%)</title><rect x="1135.0" y="98" width="0.7" height="17" fill="hsl(38 78% 68%)"/></g>
+<g><title>render index-D5GNexxr.js:9897 — 1100.5 ms (13.5%)</title><rect x="1139.9" y="62" width="188.2" height="17" fill="hsl(40 80% 65%)"/><text x="1142.9" y="74" font-size="11" clip-path="inset(0)">render</text></g>
+<g><title>drawArena index-D5GNexxr.js:6791 — 174.0 ms (2.1%)</title><rect x="1139.9" y="80" width="29.3" height="17" fill="hsl(13 73% 58%)"/></g>
+<g><title>arc :0 — 35.0 ms (0.4%)</title><rect x="1139.9" y="98" width="5.5" height="17" fill="hsl(20 80% 65%)"/></g>
+<g><title>fill :0 — 75.6 ms (0.9%)</title><rect x="1147.0" y="98" width="12.5" height="17" fill="hsl(13 73% 58%)"/></g>
+<g><title>view index-D5GNexxr.js:8154 — 110.4 ms (1.4%)</title><rect x="1169.8" y="80" width="18.4" height="17" fill="hsl(23 83% 63%)"/></g>
+<g><title>#viewWorld index-D5GNexxr.js:8191 — 90.2 ms (1.1%)</title><rect x="1169.8" y="98" width="15.0" height="17" fill="hsl(28 88% 58%)"/></g>
+<g><title>bullet index-D5GNexxr.js:8331 — 19.7 ms (0.2%)</title><rect x="1170.0" y="116" width="2.9" height="17" fill="hsl(28 88% 58%)"/></g>
+<g><title>blend index-D5GNexxr.js:8215 — 11.9 ms (0.1%)</title><rect x="1173.4" y="116" width="1.5" height="17" fill="hsl(27 87% 62%)"/></g>
+<g><title>ship index-D5GNexxr.js:8323 — 9.9 ms (0.1%)</title><rect x="1175.4" y="116" width="1.2" height="17" fill="hsl(46 86% 56%)"/></g>
+<g><title>drawHud index-D5GNexxr.js:6870 — 157.0 ms (1.9%)</title><rect x="1188.7" y="80" width="26.4" height="17" fill="hsl(13 73% 63%)"/></g>
+<g><title>(anonymous) index-D5GNexxr.js:6885 — 145.5 ms (1.8%)</title><rect x="1188.7" y="98" width="24.5" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>fillText :0 — 138.6 ms (1.7%)</title><rect x="1188.7" y="116" width="23.3" height="17" fill="hsl(34 74% 59%)"/></g>
+<g><title>drawCallsigns index-D5GNexxr.js:9882 — 62.9 ms (0.8%)</title><rect x="1215.6" y="80" width="10.3" height="17" fill="hsl(22 82% 62%)"/></g>
+<g><title>fillText :0 — 42.3 ms (0.5%)</title><rect x="1215.6" y="98" width="6.8" height="17" fill="hsl(34 74% 59%)"/></g>
+<g><title>drawNetgraph index-D5GNexxr.js:7353 — 143.1 ms (1.8%)</title><rect x="1226.4" y="80" width="24.0" height="17" fill="hsl(15 75% 60%)"/></g>
+<g><title>(anonymous) index-D5GNexxr.js:7375 — 86.4 ms (1.1%)</title><rect x="1226.4" y="98" width="14.3" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>fillText :0 — 77.1 ms (0.9%)</title><rect x="1226.4" y="116" width="12.7" height="17" fill="hsl(34 74% 59%)"/></g>
+<g><title>spark index-D5GNexxr.js:7338 — 25.7 ms (0.3%)</title><rect x="1241.2" y="98" width="3.9" height="17" fill="hsl(15 75% 60%)"/></g>
+<g><title>(anonymous) index-D5GNexxr.js:7345 — 7.4 ms (0.1%)</title><rect x="1241.2" y="116" width="0.8" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>drawEntity index-D5GNexxr.js:6932 — 335.4 ms (4.1%)</title><rect x="1250.9" y="80" width="57.0" height="17" fill="hsl(33 73% 58%)"/><text x="1253.9" y="92" font-size="11" clip-path="inset(0)">drawEntit</text></g>
+<g><title>draw index-D5GNexxr.js:7042 — 277.9 ms (3.4%)</title><rect x="1250.9" y="98" width="47.1" height="17" fill="hsl(30 70% 65%)"/><text x="1253.9" y="110" font-size="11" clip-path="inset(0)">draw</text></g>
+<g><title>blit index-D5GNexxr.js:7005 — 100.1 ms (1.2%)</title><rect x="1250.9" y="116" width="16.7" height="17" fill="hsl(47 87% 62%)"/></g>
+<g><title>save :0 — 42.5 ms (0.5%)</title><rect x="1250.9" y="134" width="6.8" height="17" fill="hsl(31 71% 66%)"/></g>
+<g><title>drawImage :0 — 35.5 ms (0.4%)</title><rect x="1258.2" y="134" width="5.6" height="17" fill="hsl(49 89% 69%)"/></g>
+<g><title>drawShip index-D5GNexxr.js:7018 — 151.6 ms (1.9%)</title><rect x="1268.8" y="116" width="25.5" height="17" fill="hsl(10 70% 60%)"/></g>
+<g><title>blit index-D5GNexxr.js:7005 — 124.3 ms (1.5%)</title><rect x="1268.8" y="134" width="20.8" height="17" fill="hsl(47 87% 62%)"/></g>
+<g><title>save :0 — 40.4 ms (0.5%)</title><rect x="1268.8" y="152" width="6.4" height="17" fill="hsl(31 71% 66%)"/></g>
+<g><title>drawImage :0 — 62.1 ms (0.8%)</title><rect x="1275.8" y="152" width="10.1" height="17" fill="hsl(49 89% 69%)"/></g>
+<g><title>fillRect :0 — 7.3 ms (0.1%)</title><rect x="1298.6" y="98" width="0.8" height="17" fill="hsl(41 81% 66%)"/></g>
+<g><title>interpolateEntity index-D5GNexxr.js:6892 — 24.8 ms (0.3%)</title><rect x="1299.8" y="98" width="3.8" height="17" fill="hsl(22 82% 67%)"/></g>
+<g><title>drawScreen index-D5GNexxr.js:7301 — 44.9 ms (0.5%)</title><rect x="1309.9" y="80" width="7.2" height="17" fill="hsl(34 74% 59%)"/></g>
+<g><title>fillText :0 — 16.0 ms (0.2%)</title><rect x="1310.6" y="98" width="2.2" height="17" fill="hsl(34 74% 59%)"/></g>
+<g><title>begin index-D5GNexxr.js:6764 — 15.5 ms (0.2%)</title><rect x="1317.7" y="80" width="2.2" height="17" fill="hsl(27 87% 62%)"/></g>
+<g><title>clearRect :0 — 11.5 ms (0.1%)</title><rect x="1317.7" y="98" width="1.5" height="17" fill="hsl(35 75% 55%)"/></g>
+<g><title>drawWorld index-D5GNexxr.js:7286 — 13.3 ms (0.2%)</title><rect x="1320.4" y="80" width="1.8" height="17" fill="hsl(16 76% 61%)"/></g>
+<g><title>requestAnimationFrame :0 — 20.6 ms (0.3%)</title><rect x="1328.6" y="62" width="3.0" height="17" fill="hsl(42 82% 67%)"/></g>
+<g><title>(anonymous) index-D5GNexxr.js:9215 — 167.2 ms (2.0%)</title><rect x="1336.1" y="44" width="28.2" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>emit index-D5GNexxr.js:8559 — 144.5 ms (1.8%)</title><rect x="1336.1" y="62" width="24.3" height="17" fill="hsl(21 81% 66%)"/></g>
+<g><title>dispatchEvent :0 — 135.1 ms (1.7%)</title><rect x="1336.1" y="80" width="22.7" height="17" fill="hsl(26 86% 56%)"/></g>
+<g><title>handler index-D5GNexxr.js:8564 — 124.2 ms (1.5%)</title><rect x="1336.1" y="98" width="20.8" height="17" fill="hsl(12 72% 62%)"/></g>
+<g><title>(anonymous) index-D5GNexxr.js:9388 — 124.2 ms (1.5%)</title><rect x="1336.1" y="116" width="20.8" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>emit index-D5GNexxr.js:8559 — 123.9 ms (1.5%)</title><rect x="1336.1" y="134" width="20.7" height="17" fill="hsl(21 81% 66%)"/></g>
+<g><title>dispatchEvent :0 — 122.3 ms (1.5%)</title><rect x="1336.1" y="152" width="20.5" height="17" fill="hsl(26 86% 56%)"/></g>
+<g><title>handler index-D5GNexxr.js:8564 — 108.2 ms (1.3%)</title><rect x="1336.1" y="170" width="18.0" height="17" fill="hsl(12 72% 62%)"/></g>
+<g><title>(anonymous) index-D5GNexxr.js:9818 — 108.2 ms (1.3%)</title><rect x="1336.1" y="188" width="18.0" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>receive index-D5GNexxr.js:7904 — 107.5 ms (1.3%)</title><rect x="1336.1" y="206" width="17.9" height="17" fill="hsl(45 85% 65%)"/></g>
+<g><title>deliver index-D5GNexxr.js:7709 — 107.5 ms (1.3%)</title><rect x="1336.1" y="224" width="17.9" height="17" fill="hsl(31 71% 61%)"/></g>
+<g><title>(anonymous) index-D5GNexxr.js:7906 — 107.1 ms (1.3%)</title><rect x="1336.1" y="242" width="17.9" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>#handle index-D5GNexxr.js:7908 — 103.3 ms (1.3%)</title><rect x="1336.1" y="260" width="17.2" height="17" fill="hsl(13 73% 58%)"/></g>
+<g><title>decodeServer index-D5GNexxr.js:7527 — 58.3 ms (0.7%)</title><rect x="1336.1" y="278" width="9.5" height="17" fill="hsl(19 79% 59%)"/></g>
+<g><title>list index-D5GNexxr.js:7511 — 43.1 ms (0.5%)</title><rect x="1336.1" y="296" width="6.9" height="17" fill="hsl(24 84% 64%)"/></g>
+<g><title>(anonymous) index-D5GNexxr.js:7591 — 13.1 ms (0.2%)</title><rect x="1337.1" y="314" width="1.8" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>(anonymous) index-D5GNexxr.js:7572 — 15.6 ms (0.2%)</title><rect x="1339.4" y="314" width="2.2" height="17" fill="hsl(38 78% 58%)"/></g>
+<g><title>#onSnapshot index-D5GNexxr.js:7937 — 30.1 ms (0.4%)</title><rect x="1346.1" y="278" width="4.7" height="17" fill="hsl(24 84% 64%)"/></g>
+<g><title>tick :7 — 136.1 ms (1.7%)</title><rect x="1365.1" y="44" width="22.8" height="17" fill="hsl(47 87% 62%)"/></g>
+<g><title>requestAnimationFrame :0 — 105.2 ms (1.3%)</title><rect x="1365.1" y="62" width="17.5" height="17" fill="hsl(42 82% 67%)"/></g>
+<g><title>(garbage collector) :0 — 66.1 ms (0.8%)</title><rect x="1388.4" y="44" width="10.8" height="17" fill="hsl(25 85% 65%)"/></g>
+</svg>

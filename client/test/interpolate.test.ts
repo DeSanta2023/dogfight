@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { Ship } from '@dogfight/shared/ship.ts';
 import { Vector2 } from '@dogfight/shared/vector.ts';

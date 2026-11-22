@@ -1,0 +1,47 @@
+{
+  "label": "before",
+  "players": 16,
+  "kbPerStep": 49,
+  "top": [
+    {
+      "fn": "step world.ts:79",
+      "kbPerStep": 9.42,
+      "pct": 19.2
+    },
+    {
+      "fn": "integrate ship.ts:71",
+      "kbPerStep": 7.9,
+      "pct": 16.1
+    },
+    {
+      "fn": "next :0",
+      "kbPerStep": 6.53,
+      "pct": 13.3
+    },
+    {
+      "fn": "update entities.ts:35",
+      "kbPerStep": 6.5,
+      "pct": 13.3
+    },
+    {
+      "fn": "(anon) world.ts:55",
+      "kbPerStep": 6.31,
+      "pct": 12.9
+    },
+    {
+      "fn": "update ship.ts:187",
+      "kbPerStep": 5.18,
+      "pct": 10.6
+    },
+    {
+      "fn": "findCollisions collision.ts:13",
+      "kbPerStep": 1.53,
+      "pct": 3.1
+    },
+    {
+      "fn": "fire ship.ts:226",
+      "kbPerStep": 1.1,
+      "pct": 2.2
+    }
+  ]
+}

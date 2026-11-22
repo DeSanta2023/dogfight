@@ -1,0 +1,87 @@
+{
+  "label": "after",
+  "budgetMs": 33.333333333333336,
+  "seconds": 10,
+  "rows": [
+    {
+      "players": 8,
+      "joined": 8,
+      "hz": 29.99,
+      "skippedTicks": 0,
+      "simMeanMs": 0.183,
+      "stepMeanMs": 0.667,
+      "stepP50Ms": 0.532,
+      "stepP99Ms": 4.149,
+      "stepMaxMs": 7.223,
+      "overBudget": false,
+      "rssMb": 116
+    },
+    {
+      "players": 32,
+      "joined": 32,
+      "hz": 29.96,
+      "skippedTicks": 0,
+      "simMeanMs": 0.295,
+      "stepMeanMs": 1.32,
+      "stepP50Ms": 1.231,
+      "stepP99Ms": 3.037,
+      "stepMaxMs": 3.406,
+      "overBudget": false,
+      "rssMb": 117
+    },
+    {
+      "players": 64,
+      "joined": 64,
+      "hz": 29.96,
+      "skippedTicks": 0,
+      "simMeanMs": 0.5,
+      "stepMeanMs": 3.119,
+      "stepP50Ms": 2.861,
+      "stepP99Ms": 9.166,
+      "stepMaxMs": 9.915,
+      "overBudget": false,
+      "rssMb": 121
+    },
+    {
+      "players": 128,
+      "joined": 128,
+      "hz": 29.91,
+      "skippedTicks": 1,
+      "simMeanMs": 0.79,
+      "stepMeanMs": 7.188,
+      "stepP50Ms": 6.493,
+      "stepP99Ms": 16.015,
+      "stepMaxMs": 19.386,
+      "overBudget": false,
+      "rssMb": 140
+    },
+    {
+      "players": 192,
+      "joined": 192,
+      "hz": 29.93,
+      "skippedTicks": 0,
+      "simMeanMs": 1.103,
+      "stepMeanMs": 12.355,
+      "stepP50Ms": 11.876,
+      "stepP99Ms": 24.381,
+      "stepMaxMs": 34.674,
+      "overBudget": false,
+      "rssMb": 145
+    },
+    {
+      "players": 250,
+      "joined": 250,
+      "hz": 29.54,
+      "skippedTicks": 6,
+      "simMeanMs": 1.645,
+      "stepMeanMs": 18.631,
+      "stepP50Ms": 17.584,
+      "stepP99Ms": 38.949,
+      "stepMaxMs": 41.807,
+      "overBudget": false,
+      "rssMb": 166
+    }
+  ],
+  "firstOverBudget": null,
+  "firstP99OverBudget": 250
+}

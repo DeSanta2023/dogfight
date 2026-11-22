@@ -1,6 +1,7 @@
 import { Entity } from './entity.ts';
 import { isKind } from './kinds.ts';
 import { Vector2 } from './vector.ts';
+import { Pool } from './pool.ts';
 import { homing } from './behaviors.ts';
 import type { EntityId } from './brand.ts';
 import type { Rng } from './rng.ts';
@@ -18,8 +19,21 @@ export interface BulletInit {
   ownerId?: EntityId;
 }
 
+/** Used bullets wait here. `Bullet.acquire()` takes one, World gives it back via `recycle()`. */
+export const bulletPool = new Pool<Bullet>(
+  () => new Bullet({ pos: Vector2.ZERO, vel: Vector2.ZERO, angle: 0 }),
+  1024,
+);
+
 export class Bullet extends Entity {
   declare kind: 'bullet';
+
+  /** A bullet from the pool (or a new one), in exactly the state `new Bullet(init)` would give. */
+  static acquire(init: BulletInit): Bullet {
+    const bullet = bulletPool.acquire();
+    bullet.reset(init);
+    return bullet;
+  }
 
   ttl: number = BULLET.ttl;
   damage: number = BULLET.damage;
@@ -30,6 +44,31 @@ export class Bullet extends Entity {
   constructor({ pos, vel, angle, ownerId }: BulletInit) {
     super({ kind: 'bullet', pos, vel, angle, radius: BULLET.radius, edge: 'wrap' });
     this.ownerId = ownerId;
+  }
+
+  /** Every field back to its initial value: this is what makes pooling invisible. */
+  reset({ pos, vel, angle, ownerId }: BulletInit): void {
+    this.pos = pos;
+    this.vel = vel;
+    this.prevPos = pos;
+    this.angle = angle;
+    this.prevAngle = angle;
+    this.radius = BULLET.radius;
+    this.edge = 'wrap';
+    this.solid = true;
+    this.alive = true;
+    this.world = null;
+    this.behaviors.length = 0;
+    this.ttl = BULLET.ttl;
+    this.damage = BULLET.damage;
+    this.ownerId = ownerId;
+    this.ownerSlot = -1;
+    this.fireSeq = 0;
+  }
+
+  override recycle(): void {
+    this.world = null;
+    bulletPool.release(this);
   }
 
   override update(dt: number): void {
@@ -159,10 +198,17 @@ export interface ExplosionInit {
   variant?: 'rock' | 'ship';
 }
 
+const EMPTY_PARTICLES: readonly Particle[] = Object.freeze([]);
+/** Sparks are recycled too: an explosion needs 16 of them for 0.7 s, then they come back. */
+export const particlePool = new Pool<Particle>(
+  () => ({ x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0, life: 0, maxLife: 0 }),
+  4096,
+);
+
 export class Explosion extends Entity {
   declare kind: 'explosion';
 
-  particles: Particle[];
+  particles: readonly Particle[];
   variant: 'rock' | 'ship';
 
   /** `rng` is the game's seeded generator, so explosions are deterministic too. */
@@ -176,22 +222,26 @@ export class Explosion extends Entity {
   }: ExplosionInit) {
     super({ kind: 'explosion', pos, radius: 0, solid: false });
     this.variant = variant;
-    this.particles = Array.from({ length: count }, () => {
-      const velocity = Vector2.fromAngle(
-        rng.range(0, Math.PI * 2),
-        rng.range(0.25, 1) * speed,
-      );
-      return {
-        x: pos.x,
-        y: pos.y,
-        px: pos.x,
-        py: pos.y,
-        vx: velocity.x,
-        vy: velocity.y,
-        life: rng.range(0.4, 1) * life,
-        maxLife: life,
-      };
-    });
+    const particles: Particle[] = [];
+    for (let i = 0; i < count; i++) {
+      // The order of the rng calls is part of the simulation: angle, speed, life. Do not reorder.
+      const angle = rng.range(0, Math.PI * 2);
+      const magnitude = rng.range(0.25, 1) * speed;
+      const p = particlePool.acquire();
+      p.x = p.px = pos.x;
+      p.y = p.py = pos.y;
+      p.vx = Math.cos(angle) * magnitude;
+      p.vy = Math.sin(angle) * magnitude;
+      p.life = rng.range(0.4, 1) * life;
+      p.maxLife = life;
+      particles.push(p);
+    }
+    this.particles = particles;
+  }
+
+  override recycle(): void {
+    for (const p of this.particles) particlePool.release(p);
+    this.particles = EMPTY_PARTICLES;
   }
 
   override update(dt: number): void {

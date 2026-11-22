@@ -6,3 +6,8 @@ notes/
 server/logs/
 server/.env
 *.ndjson
+dist-profile
+e2e/.logs
+playwright-report
+test-results
+coverage

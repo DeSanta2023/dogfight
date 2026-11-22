@@ -1,4 +1,4 @@
-import { test, afterEach } from 'node:test';
+import { test, afterEach } from 'vitest';
 import assert from 'node:assert/strict';
 import { WebSocket } from 'ws';
 import { z } from 'zod';

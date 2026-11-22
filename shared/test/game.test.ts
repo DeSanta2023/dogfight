@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { Game, RESPAWN_DELAY } from '../src/game.ts';
 import { Ship, createShip, integrate } from '../src/ship.ts';

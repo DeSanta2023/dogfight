@@ -1,4 +1,4 @@
-import { test, before, after } from 'node:test';
+import { test, beforeAll, afterAll } from 'vitest';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -33,14 +33,14 @@ const t = {
     return server().app;
   },
 };
-before(async () => {
+beforeAll(async () => {
   started = await startTestServer({ MAX_BODY_BYTES: '256' });
   await mkdir(join(t.dir, 'static'), { recursive: true });
   await writeFile(join(t.dir, 'static', 'index.html'), '<h1>client</h1>');
   await writeFile(join(t.dir, 'static', 'app.js'), 'export {}');
   await writeFile(join(t.dir, 'secret.txt'), 'top secret'); // OUTSIDE the static root
 });
-after(() => server().stop());
+afterAll(() => server().stop());
 
 const post = (
   path: string,

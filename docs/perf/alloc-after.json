@@ -1,0 +1,47 @@
+{
+  "label": "after",
+  "players": 16,
+  "kbPerStep": 22.2,
+  "top": [
+    {
+      "fn": "update ship.ts:192",
+      "kbPerStep": 3.97,
+      "pct": 17.8
+    },
+    {
+      "fn": "update entities.ts:74",
+      "kbPerStep": 3.6,
+      "pct": 16.2
+    },
+    {
+      "fn": "integrate ship.ts:75",
+      "kbPerStep": 2.33,
+      "pct": 10.5
+    },
+    {
+      "fn": "next :0",
+      "kbPerStep": 1.93,
+      "pct": 8.7
+    },
+    {
+      "fn": "(anon) world.ts:67",
+      "kbPerStep": 1.84,
+      "pct": 8.3
+    },
+    {
+      "fn": "findCollisions collision.ts:13",
+      "kbPerStep": 1.35,
+      "pct": 6.1
+    },
+    {
+      "fn": "#collectLiving world.ts:29",
+      "kbPerStep": 1.16,
+      "pct": 5.2
+    },
+    {
+      "fn": "step alloc-profile.mjs:16",
+      "kbPerStep": 1.15,
+      "pct": 5.2
+    }
+  ]
+}

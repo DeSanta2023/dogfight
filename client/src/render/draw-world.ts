@@ -5,7 +5,7 @@ import type { Sprites } from './sprites.ts';
 import { createRng } from '@dogfight/shared/rng.ts';
 import { Ship } from '@dogfight/shared/ship.ts';
 import { drawShip } from './draw.ts';
-import { interpolateEntity } from './interpolate.ts';
+import { interpolateInto, type Pose } from './interpolate.ts';
 
 // Asteroid outlines are generated once per entity id, from the id, so they never change.
 const shapeCache = new Map();
@@ -30,6 +30,13 @@ const PICKUP_STYLE: Record<PickupType, { color: string; label: string }> = {
   homing: { color: '#c77dff', label: 'H' },
 };
 
+/** The same trick for the options objects: one each, rewritten before every use. */
+const spriteOptions = { blink: false };
+const shipOptions = { blink: false, shield: false };
+
+/** One pose reused for every entity of every frame (drawEntity is synchronous). */
+const scratch: Pose = { x: 0, y: 0, angle: 0, thrust: 0 };
+
 /** Draw one World entity at its interpolated pose. Pure rendering: reads sim state, never writes. */
 export function drawEntity(
   ctx: CanvasRenderingContext2D,
@@ -37,7 +44,7 @@ export function drawEntity(
   alpha: number,
   sprites: Sprites | null = null,
 ): void {
-  const pose = interpolateEntity(entity, alpha);
+  const pose = interpolateInto(scratch, entity, alpha);
 
   // Sprites first. If there is no sheet (it failed to load) or no frame for this entity,
   // draw() returns false and we fall through to the built-in vector art below.
@@ -46,15 +53,16 @@ export function drawEntity(
       entity.kind === 'ship' &&
       entity.invulnerable &&
       Math.floor(performance.now() / 90) % 2 === 0;
-    if (sprites.draw(ctx, entity, pose, { blink })) return;
+    spriteOptions.blink = blink;
+    if (sprites.draw(ctx, entity, pose, spriteOptions)) return;
   }
 
   switch (entity.kind) {
     case 'ship':
-      drawShip(ctx, pose, {
-        blink: entity.invulnerable && Math.floor(performance.now() / 90) % 2 === 0,
-        shield: entity.hasEffect('shield'),
-      });
+      shipOptions.blink =
+        entity.invulnerable && Math.floor(performance.now() / 90) % 2 === 0;
+      shipOptions.shield = entity.hasEffect('shield');
+      drawShip(ctx, pose, shipOptions);
       break;
 
     case 'bullet': {

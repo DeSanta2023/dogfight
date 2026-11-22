@@ -6,6 +6,7 @@ import {
   type Tick,
 } from '@dogfight/shared/brand.ts';
 import { ASTEROID_RADIUS, BULLET, Explosion } from '@dogfight/shared/entities.ts';
+import { isKind } from '@dogfight/shared/kinds.ts';
 import { GameEvents } from '@dogfight/shared/events.ts';
 import {
   decodeServer,
@@ -35,6 +36,7 @@ import type {
   EffectName,
 } from '../render/drawable.ts';
 import { Conditioner } from './conditioner.ts';
+import { DrawablePool } from '../render/drawable-pool.ts';
 
 const REDUNDANCY = 8; // every packet repeats the last 8 inputs: one lost packet costs nothing
 const MAX_PENDING = 120; // 4 s of unconfirmed input: the server is gone, stop remembering
@@ -120,6 +122,13 @@ export interface NetStats {
 }
 const NO_OFFSET: Offset = { x: 0, y: 0 };
 
+interface SnapshotIndex {
+  ships: Map<number, Snapshot['ships'][number]>;
+  bullets: Map<number, Snapshot['bullets'][number]>;
+  asteroids: Map<number, Snapshot['asteroids'][number]>;
+  pickups: Map<number, Snapshot['pickups'][number]>;
+}
+
 /**
  * The browser's half of the networked game. The player's inputs go to the server, and the server's
  * snapshots come back; this class turns that into something that feels like a local game.
@@ -169,6 +178,11 @@ export class NetGame {
   localBullets: LocalBullet[] = [];
   offset: Offset = NO_OFFSET; // what the correction still owes the screen (always replaced, never mutated)
   #offsetAt = 0;
+  // Lab 07: reused every frame, see view()
+  readonly #pool = new DrawablePool();
+  readonly #out: Drawable[] = [];
+  /** id -> entry for each snapshot, built once when a snapshot is first used as "the older one". */
+  readonly #indexes = new WeakMap<object, SnapshotIndex>();
 
   // --- world from the server ---
   snapshots: SnapshotEntry[] = []; // oldest first
@@ -558,7 +572,11 @@ export class NetGame {
    * alpha: how far we are between two client steps [0, 1).
    */
   view(alpha: number, now: number = this.now()): Drawable[] {
-    const out: Drawable[] = [];
+    // Lab 07: nothing is allocated here. `#out` and the objects in `#pool` live as long as the
+    // game; the caller must not keep them after the frame (main.ts draws them straight away).
+    const out = this.#out;
+    out.length = 0;
+    this.#pool.begin();
     this.#decayOffset(now);
     const latest = this.latest;
     if (latest) {
@@ -567,10 +585,31 @@ export class NetGame {
     }
     for (const b of this.localBullets)
       out.push(
-        bullet(0, b.x + b.vx * DT * alpha, b.y + b.vy * DT * alpha, b.angle, b.homing),
+        this.#pool.bullet(
+          0,
+          b.x + b.vx * DT * alpha,
+          b.y + b.vy * DT * alpha,
+          b.angle,
+          b.homing,
+          BULLET.radius,
+        ),
       );
-    for (const e of this.fx.ofKind('explosion')) out.push(e);
+    for (const e of this.fx) if (isKind(e, 'explosion')) out.push(e);
     return out;
+  }
+
+  #index(snap: Snapshot): SnapshotIndex {
+    let index = this.#indexes.get(snap);
+    if (!index) {
+      index = {
+        ships: new Map(snap.ships.map((e) => [e.slot, e])),
+        bullets: new Map(snap.bullets.map((e) => [e.id, e])),
+        asteroids: new Map(snap.asteroids.map((e) => [e.id, e])),
+        pickups: new Map(snap.pickups.map((e) => [e.id, e])),
+      };
+      this.#indexes.set(snap, index);
+    }
+    return index;
   }
 
   #decayOffset(now: number): void {
@@ -596,13 +635,19 @@ export class NetGame {
       ARENA.height,
     );
     const m = this.meta;
-    out.push(
-      ship(this.slot, x, y, a.angle + angleDelta(a.angle, b.angle) * t, {
-        thrust: b.thrust,
-        invulnerable: m.invuln > 0,
-        hasEffect: (name) => m[name] > 0,
-      }),
+    const own = this.#pool.ship(
+      this.slot,
+      x,
+      y,
+      a.angle + angleDelta(a.angle, b.angle) * t,
+      SHIP.radius,
     );
+    own.thrust = b.thrust;
+    own.invulnerable = m.invuln > 0;
+    own.shield = m.shield > 0;
+    own.rapid = m.rapid > 0;
+    own.homing = m.homing > 0;
+    out.push(own);
   }
 
   #viewWorld(out: Drawable[], latest: SnapshotEntry, alpha: number, now: number): void {
@@ -631,57 +676,61 @@ export class NetGame {
         }
       }
     }
-    const A = a.snap;
+    const A = this.#index(a.snap);
     const B = b.snap;
-    /** Position between the same thing in the older and the newer snapshot (found by key). */
-    const blend = <E extends { x: number; y: number }>(
-      newer: E,
-      older: E | undefined,
-    ): { x: number; y: number } => {
-      const p = older ?? newer;
-      return {
-        x: wrap(p.x + wrappedDelta(p.x, newer.x, ARENA.width) * t, ARENA.width),
-        y: wrap(p.y + wrappedDelta(p.y, newer.y, ARENA.height) * t, ARENA.height),
-      };
-    };
+    const pool = this.#pool;
+    // blendX/blendY: functions at the bottom of the file (module level: no closure per frame).
 
-    const oldShips = new Map(A.ships.map((e) => [e.slot, e]));
     for (const e of B.ships) {
-      const p = oldShips.get(e.slot);
-      const { x, y } = blend(e, p);
-      const angle = p ? p.angle + angleDelta(p.angle, e.angle) * t : e.angle;
-      out.push(
-        ship(e.slot, x, y, angle, {
-          thrust: e.thrust,
-          invulnerable: e.invuln > 0,
-          hasEffect: (name) => name === 'shield' && e.shield > 0,
-        }),
+      const p = A.ships.get(e.slot);
+      const s = pool.ship(
+        e.slot,
+        blendX(e.x, p ? p.x : e.x, t),
+        blendY(e.y, p ? p.y : e.y, t),
+        p ? p.angle + angleDelta(p.angle, e.angle) * t : e.angle,
+        SHIP.radius,
       );
+      s.thrust = e.thrust;
+      s.invulnerable = e.invuln > 0;
+      s.shield = e.shield > 0;
+      out.push(s);
     }
-    const oldBullets = new Map(A.bullets.map((e) => [e.id, e]));
     for (const e of B.bullets) {
       if (this.predict && e.slot === this.slot) continue; // mine: drawn below, from the newest
-      const { x, y } = blend(e, oldBullets.get(e.id));
-      out.push(bullet(e.id, x, y, Math.atan2(e.vy, e.vx), e.homing > 0));
+      const p = A.bullets.get(e.id);
+      out.push(
+        pool.bullet(
+          e.id,
+          blendX(e.x, p ? p.x : e.x, t),
+          blendY(e.y, p ? p.y : e.y, t),
+          Math.atan2(e.vy, e.vx),
+          e.homing > 0,
+          BULLET.radius,
+        ),
+      );
     }
-    const oldRocks = new Map(A.asteroids.map((e) => [e.id, e]));
     for (const e of B.asteroids) {
-      const { x, y } = blend(e, oldRocks.get(e.id));
-      out.push({
-        ...base(e.id, x, y, 0, ASTEROID_RADIUS[e.size]),
-        kind: 'asteroid',
-        size: e.size,
-        hunter: e.hunter > 0,
-      } satisfies DrawableAsteroid);
+      const p = A.asteroids.get(e.id);
+      out.push(
+        pool.asteroid(
+          e.id,
+          blendX(e.x, p ? p.x : e.x, t),
+          blendY(e.y, p ? p.y : e.y, t),
+          e.size,
+          e.hunter > 0,
+        ),
+      );
     }
-    const oldPickups = new Map(A.pickups.map((e) => [e.id, e]));
     for (const e of B.pickups) {
-      const { x, y } = blend(e, oldPickups.get(e.id));
-      out.push({
-        ...base(e.id, x, y, 0, 14),
-        kind: 'pickup',
-        type: e.type,
-      } satisfies DrawablePickup);
+      const p = A.pickups.get(e.id);
+      out.push(
+        pool.pickup(
+          e.id,
+          blendX(e.x, p ? p.x : e.x, t),
+          blendY(e.y, p ? p.y : e.y, t),
+          e.type,
+        ),
+      );
     }
 
     // My own bullets: the server's copy, from the NEWEST snapshot, moved forward by the time the
@@ -691,12 +740,13 @@ export class NetGame {
       for (const e of latest.snap.bullets) {
         if (e.slot !== this.slot) continue;
         out.push(
-          bullet(
+          this.#pool.bullet(
             e.id,
             wrap(e.x + e.vx * ahead, ARENA.width),
             wrap(e.y + e.vy * ahead, ARENA.height),
             Math.atan2(e.vy, e.vx),
             e.homing > 0,
+            BULLET.radius,
           ),
         );
       }
@@ -743,36 +793,11 @@ const EMPTY_META: Meta = {
   respawn: 0,
 };
 
-/** The fields every drawn thing has. A picture is made once per frame, so prev = current. */
-function base(id: number, x: number, y: number, angle: number, radius: number) {
-  const pos = { x, y };
-  return { id, pos, prevPos: pos, angle, prevAngle: angle, radius };
+// Position between the same thing in the older (o) and newer (n) snapshot. Plain functions that
+// return a number: nothing is allocated (the object-returning `blend` closure it replaces was).
+function blendX(n: number, o: number, t: number): number {
+  return wrap(o + wrappedDelta(o, n, ARENA.width) * t, ARENA.width);
 }
-
-interface ShipLook {
-  thrust: number;
-  invulnerable: boolean;
-  hasEffect: (name: EffectName) => boolean;
-}
-function ship(
-  slot: number,
-  x: number,
-  y: number,
-  angle: number,
-  look: ShipLook,
-): DrawableShip {
-  return { ...base(1000 + slot, x, y, angle, SHIP.radius), kind: 'ship', slot, ...look };
-}
-function bullet(
-  id: number,
-  x: number,
-  y: number,
-  angle: number,
-  homing: boolean,
-): DrawableBullet {
-  return {
-    ...base(id, x, y, angle, BULLET.radius),
-    kind: 'bullet',
-    hasBehavior: (name) => name === 'homing' && homing,
-  };
+function blendY(n: number, o: number, t: number): number {
+  return wrap(o + wrappedDelta(o, n, ARENA.height) * t, ARENA.height);
 }

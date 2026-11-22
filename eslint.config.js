@@ -3,8 +3,27 @@ import globals from 'globals';
 import prettier from 'eslint-config-prettier';
 
 export default [
-  { ignores: ['**/dist/', '**/node_modules/', 'server/logs/'] },
+  {
+    ignores: [
+      '**/dist/',
+      '**/dist-profile/',
+      '**/node_modules/',
+      'server/logs/',
+      'coverage/',
+      'playwright-report/',
+      'test-results/',
+    ],
+  },
   js.configs.recommended,
+  {
+    // Lab 07 perf tools: Node scripts, and the functions they hand to page.evaluate() run in the page.
+    files: ['perf/**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: { ...globals.node, ...globals.browser },
+    },
+  },
   {
     files: ['client/src/**/*.js'],
     languageOptions: {

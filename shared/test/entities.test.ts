@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { Entity } from '../src/entity.ts';
 import { Asteroid, Bullet, Explosion, Pickup } from '../src/entities.ts';

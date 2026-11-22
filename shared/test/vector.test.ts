@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test, expect } from 'vitest';
 import assert from 'node:assert/strict';
 import { Vector2 } from '../src/vector.ts';
 
@@ -37,4 +37,25 @@ test('Vector2.fromAngle, rotate and angle agree', () => {
   assert.ok(Math.abs(north.x) < 1e-12 && Math.abs(north.y - 1) < 1e-12);
   assert.ok(Math.abs(Vector2.fromAngle(1.2, 7).angle() - 1.2) < 1e-12);
   assert.ok(Math.abs(Vector2.fromAngle(1.2, 7).length() - 7) < 1e-12);
+});
+
+test('Vector2: normalize of the zero vector is zero, not NaN', () => {
+  const n = new Vector2(0, 0).normalize();
+  expect([n.x, n.y]).toEqual([0, 0]);
+});
+
+test('Vector2: rotate by a quarter turn, and fromAngle agrees with it', () => {
+  const r = new Vector2(1, 0).rotate(Math.PI / 2);
+  expect(r.x).toBeCloseTo(0, 12);
+  expect(r.y).toBeCloseTo(1, 12);
+  const f = Vector2.fromAngle(Math.PI / 2, 3);
+  expect([f.x, f.y]).toEqual([Math.cos(Math.PI / 2) * 3, Math.sin(Math.PI / 2) * 3]);
+});
+
+test('Vector2: add and sub are inverses, lengthSq equals length squared', () => {
+  const a = new Vector2(3, -7);
+  const b = new Vector2(-2, 5);
+  const back = a.add(b).sub(b);
+  expect([back.x, back.y]).toEqual([3, -7]);
+  expect(a.lengthSq()).toBeCloseTo(a.length() ** 2, 9);
 });

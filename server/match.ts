@@ -1,3 +1,4 @@
+import { createSpatialHash } from '@dogfight/shared/collision.ts';
 import { Game, type GameOptions } from '@dogfight/shared/game.ts';
 import { DT, TICK_HZ, inputFromBits, type InputBits } from '@dogfight/shared/input.ts';
 import {
@@ -13,6 +14,7 @@ import { Ticker, type TickerOptions } from './ticker.ts';
 const MAX_QUEUE = 6; // inputs a player may have waiting. More = the client runs ahead: drop the oldest
 const KEEP_ON_OVERFLOW = 3;
 const MAX_GAP_FILL = 8;
+const STEP_SAMPLES = 300; // 10 s of ticks
 
 /**
  * The authoritative game of one room. It owns a Game (from @dogfight/shared, the same code the
@@ -55,10 +57,21 @@ export class Match {
   #events: WireEvent[] = [];
   #onSnapshot: MatchOptions['onSnapshot'];
   tickNumber = 0;
+  /** Lab 07: how long the last STEP_SAMPLES ticks took (ms), a ring buffer: no allocation per tick. */
+  #stepMs = new Float64Array(STEP_SAMPLES);
+  #simMs = new Float64Array(STEP_SAMPLES);
+  #stepCount = 0;
 
   constructor({ arena = {}, onSnapshot, ...tickerOptions }: MatchOptions) {
     const seed = arena.seed ?? Date.now() & 0x7fffffff; // chosen HERE, at the edge: the sim has no clock
-    this.#game = new Game({ ...arena, seed, players: 0, cosmetics: false });
+    this.#game = new Game({
+      ...arena,
+      seed,
+      players: 0,
+      cosmetics: false,
+      // Lab 07: same pairs in the same order as the naive check, 3-11x faster with 100+ entities.
+      collide: createSpatialHash(),
+    });
     this.#onSnapshot = onSnapshot;
     this.#ticker = new Ticker({
       hz: TICK_HZ,
@@ -144,6 +157,7 @@ export class Match {
 
   /** One simulation step for everybody, then one snapshot per player. */
   tick(): void {
+    const t0 = performance.now();
     const inputs = new Map<number, ReturnType<typeof inputFromBits>>();
     for (const [slot, p] of this.#players) {
       const next = p.queue.shift();
@@ -158,6 +172,7 @@ export class Match {
       inputs.set(slot, inputFromBits(p.lastBits));
     }
     this.#game.stepInputs(DT, inputs);
+    const t1 = performance.now();
     this.tickNumber++;
 
     const events = this.#events;
@@ -173,6 +188,23 @@ export class Match {
         }),
       );
     }
+    const slot = this.#stepCount++ % STEP_SAMPLES;
+    this.#simMs[slot] = t1 - t0;
+    this.#stepMs[slot] = performance.now() - t0;
+  }
+
+  /**
+   * Server step time over the last ~10 s: `sim` is the world step only, `total` adds building and
+   * sending every player's snapshot. The Lab 07 load test looks at total.p99: a step that takes
+   * longer than the 33.3 ms budget means the server cannot keep 30 ticks/s.
+   */
+  stepStats() {
+    const n = Math.min(this.#stepCount, STEP_SAMPLES);
+    return {
+      samples: n,
+      sim: summarize(this.#simMs, n),
+      total: summarize(this.#stepMs, n),
+    };
   }
 
   stats() {
@@ -187,9 +219,23 @@ export class Match {
     return {
       players: this.#players.size,
       ...this.#ticker.stats(),
+      step: this.stepStats(),
       starved,
       dropped,
       queued,
     };
   }
+}
+
+function summarize(buffer: Float64Array, n: number) {
+  if (n === 0) return { mean: 0, p50: 0, p99: 0, max: 0 };
+  const sorted = Array.from(buffer.subarray(0, n)).sort((a, b) => a - b);
+  const at = (q: number) => sorted[Math.min(n - 1, Math.floor(q * n))] ?? 0;
+  const round = (v: number) => Math.round(v * 1000) / 1000;
+  return {
+    mean: round(sorted.reduce((a, b) => a + b, 0) / n),
+    p50: round(at(0.5)),
+    p99: round(at(0.99)),
+    max: round(sorted[n - 1] ?? 0),
+  };
 }

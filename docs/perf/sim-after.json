@@ -1,0 +1,25 @@
+{
+  "label": "after",
+  "collide": "hash",
+  "players": 16,
+  "steps": 20000,
+  "avgEntities": 34,
+  "msPerStep": {
+    "mean": 0.019,
+    "p50": 0.015,
+    "p99": 0.073,
+    "max": 5.566
+  },
+  "stepsPerSecond": 52523,
+  "gc": {
+    "minorCount": 83,
+    "minorTotalMs": 23.57,
+    "majorCount": 1,
+    "majorTotalMs": 2.65,
+    "maxPauseMs": 4.004,
+    "gcPer1000Steps": 4.25
+  },
+  "allocKbPerStep": null,
+  "heapDeltaMb": 18.091,
+  "node": "v22.23.5"
+}

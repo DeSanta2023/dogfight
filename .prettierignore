@@ -3,3 +3,9 @@ dist
 package-lock.json
 public/assets/chaos/
 client/public/assets/chaos/
+dist-profile
+coverage
+playwright-report
+test-results
+e2e/.logs
+docs/perf

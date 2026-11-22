@@ -45,11 +45,18 @@ export function interpolateShip(prev: Placed, cur: Placed, alpha: number): Pose 
  * (`prevPos`, `prevAngle`, saved by Entity.snapshot() before every step).
  */
 export function interpolateEntity(entity: Interpolable, alpha: number): Pose {
+  return interpolateInto({ x: 0, y: 0, angle: 0, thrust: 0 }, entity, alpha);
+}
+
+/**
+ * The same blend, written INTO a pose you own. The renderer calls this once per entity per frame
+ * with one scratch Pose, so a frame makes no garbage (Lab 07: it was the #1 allocator).
+ */
+export function interpolateInto(out: Pose, entity: Interpolable, alpha: number): Pose {
   const { prevPos: prev, pos: cur } = entity;
-  return {
-    x: wrap(prev.x + wrappedDelta(prev.x, cur.x, ARENA.width) * alpha, ARENA.width),
-    y: wrap(prev.y + wrappedDelta(prev.y, cur.y, ARENA.height) * alpha, ARENA.height),
-    angle: entity.prevAngle + angleDelta(entity.prevAngle, entity.angle) * alpha,
-    thrust: entity.thrust ?? 0,
-  };
+  out.x = wrap(prev.x + wrappedDelta(prev.x, cur.x, ARENA.width) * alpha, ARENA.width);
+  out.y = wrap(prev.y + wrappedDelta(prev.y, cur.y, ARENA.height) * alpha, ARENA.height);
+  out.angle = entity.prevAngle + angleDelta(entity.prevAngle, entity.angle) * alpha;
+  out.thrust = entity.thrust ?? 0;
+  return out;
 }

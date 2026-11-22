@@ -7,12 +7,13 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test",
+    "test": "vitest run",
     "determinism": "node scripts/determinism.mjs",
     "this-bug": "node scripts/this-bug.mjs",
     "prototypes": "node scripts/prototype-chain.mjs",
     "puzzles": "node scripts/puzzles.mjs",
-    "load-timing": "node scripts/load-timing.mjs"
+    "load-timing": "node scripts/load-timing.mjs",
+    "build:profile": "vite build --minify false --outDir dist-profile"
   },
   "devDependencies": {
     "vite": "^8.3.5"

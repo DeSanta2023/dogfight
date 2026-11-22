@@ -1,0 +1,23 @@
+{
+  "label": "before",
+  "players": 16,
+  "steps": 20000,
+  "avgEntities": 34,
+  "msPerStep": {
+    "mean": 0.037,
+    "p50": 0.031,
+    "p99": 0.181,
+    "max": 3.33
+  },
+  "stepsPerSecond": 27206,
+  "gc": {
+    "minorCount": 128,
+    "minorTotalMs": 45.103,
+    "majorCount": 1,
+    "majorTotalMs": 2.093,
+    "maxPauseMs": 2.592,
+    "gcPer1000Steps": 6.5
+  },
+  "heapDeltaMb": 8.479,
+  "node": "v22.23.5"
+}

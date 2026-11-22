@@ -1,0 +1,58 @@
+[
+  {
+    "entities": 16,
+    "pairs": 0,
+    "samePairs": true,
+    "naiveMs": 0.0012,
+    "hashMs": 0.0017,
+    "speedup": 0.67
+  },
+  {
+    "entities": 32,
+    "pairs": 3,
+    "samePairs": true,
+    "naiveMs": 0.0041,
+    "hashMs": 0.0038,
+    "speedup": 1.07
+  },
+  {
+    "entities": 64,
+    "pairs": 10,
+    "samePairs": true,
+    "naiveMs": 0.014,
+    "hashMs": 0.0046,
+    "speedup": 3.05
+  },
+  {
+    "entities": 128,
+    "pairs": 30,
+    "samePairs": true,
+    "naiveMs": 0.0529,
+    "hashMs": 0.0141,
+    "speedup": 3.74
+  },
+  {
+    "entities": 256,
+    "pairs": 127,
+    "samePairs": true,
+    "naiveMs": 0.2112,
+    "hashMs": 0.0276,
+    "speedup": 7.66
+  },
+  {
+    "entities": 512,
+    "pairs": 492,
+    "samePairs": true,
+    "naiveMs": 0.9293,
+    "hashMs": 0.0841,
+    "speedup": 11.05
+  },
+  {
+    "entities": 1024,
+    "pairs": 2207,
+    "samePairs": true,
+    "naiveMs": 3.7225,
+    "hashMs": 0.4575,
+    "speedup": 8.14
+  }
+]

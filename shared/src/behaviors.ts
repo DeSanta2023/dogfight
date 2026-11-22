@@ -32,7 +32,9 @@ export function homing({
       let target: Entity | null = null;
       let bestSq = range * range;
       for (const candidate of world.ofKind(targetKind)) {
-        const dSq = candidate.pos.sub(entity.pos).lengthSq();
+        const dx = candidate.pos.x - entity.pos.x;
+        const dy = candidate.pos.y - entity.pos.y;
+        const dSq = dx * dx + dy * dy; // same number as pos.sub().lengthSq(), without a Vector2
         if (dSq < bestSq) {
           bestSq = dSq;
           target = candidate;

@@ -1,0 +1,169 @@
+{
+  "label": "before-4x",
+  "seconds": 30,
+  "bots": 8,
+  "query": "",
+  "environment": {
+    "cpus": 2,
+    "node": "v22.23.5",
+    "browser": "157.0.8103.78"
+  },
+  "throttle": 4,
+  "frame": {
+    "frames": 1407,
+    "fps": 46.9,
+    "p50": 16.7,
+    "p95": 33.4,
+    "p99": 33.4,
+    "max": 66.6,
+    "over16_7": 385,
+    "over33": 75,
+    "longTasks": 2,
+    "longTaskMaxMs": 62
+  },
+  "cpu": {
+    "idleMs": 1861,
+    "gcMs": 138,
+    "nativeMs": 24185,
+    "jsMs": 3932,
+    "busyPct": 93.8
+  },
+  "gc": {
+    "minor": {
+      "count": 38,
+      "totalMs": 196.22,
+      "maxMs": 9.14
+    },
+    "major": {
+      "count": 2,
+      "totalMs": 60.17,
+      "maxMs": 30.18
+    },
+    "eventNamesSeen": [
+      "V8.GC_TIME_TO_SAFEPOINT",
+      "V8.GC_HEAP_ENSURE_SWEEPING_COMPLETED",
+      "V8.GC_HEAP_EXTERNAL_PROLOGUE",
+      "MinorGC",
+      "V8.GC_HEAP_PROLOGUE",
+      "V8.GCScavenger",
+      "V8.GC_SCAVENGER",
+      "V8.GC_HEAP_PROLOGUE_SAFEPOINT",
+      "V8.GC_SCAVENGER_SCAVENGE",
+      "V8.GC_SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY",
+      "V8.GC_SCAVENGER_TRACED_HANDLES_COMPUTE_WEAKNESS_PARALLEL",
+      "V8.GC_SCAVENGER_SCAVENGE_COLLECT_OLD_TO_NEW_PAGES"
+    ]
+  },
+  "allocatedSampledKb": 50937,
+  "topAllocators": [
+    {
+      "fn": "interpolateEntity index-D5GNexxr.js:6892",
+      "kb": 5158,
+      "pct": 10.1
+    },
+    {
+      "fn": "drawArena index-D5GNexxr.js:6791",
+      "kb": 4769,
+      "pct": 9.4
+    },
+    {
+      "fn": "bullet index-D5GNexxr.js:8331",
+      "kb": 3723,
+      "pct": 7.3
+    },
+    {
+      "fn": "#viewWorld index-D5GNexxr.js:8191",
+      "kb": 3548,
+      "pct": 7
+    },
+    {
+      "fn": "drawShip index-D5GNexxr.js:7018",
+      "kb": 2682,
+      "pct": 5.3
+    },
+    {
+      "fn": "drawEntity index-D5GNexxr.js:6932",
+      "kb": 2465,
+      "pct": 4.8
+    },
+    {
+      "fn": "ship index-D5GNexxr.js:8323",
+      "kb": 2385,
+      "pct": 4.7
+    },
+    {
+      "fn": "drawCallsigns index-D5GNexxr.js:9882",
+      "kb": 1819,
+      "pct": 3.6
+    },
+    {
+      "fn": "forEach :0",
+      "kb": 1737,
+      "pct": 3.4
+    },
+    {
+      "fn": "drawNetgraph index-D5GNexxr.js:7353",
+      "kb": 1706,
+      "pct": 3.3
+    }
+  ],
+  "topCpu": [
+    {
+      "fn": "(program) :0",
+      "ms": 24184.8,
+      "pct": 85.6
+    },
+    {
+      "fn": "fillText :0",
+      "ms": 732.9,
+      "pct": 2.6
+    },
+    {
+      "fn": "save :0",
+      "ms": 236,
+      "pct": 0.8
+    },
+    {
+      "fn": "drawImage :0",
+      "ms": 205.3,
+      "pct": 0.7
+    },
+    {
+      "fn": "drawArena index-D5GNexxr.js:6791",
+      "ms": 170,
+      "pct": 0.6
+    },
+    {
+      "fn": "send :0",
+      "ms": 160.1,
+      "pct": 0.6
+    },
+    {
+      "fn": "requestAnimationFrame :0",
+      "ms": 138.4,
+      "pct": 0.5
+    },
+    {
+      "fn": "(garbage collector) :0",
+      "ms": 138,
+      "pct": 0.5
+    },
+    {
+      "fn": "fill :0",
+      "ms": 133.9,
+      "pct": 0.5
+    },
+    {
+      "fn": "#viewWorld index-D5GNexxr.js:8191",
+      "ms": 108.1,
+      "pct": 0.4
+    }
+  ],
+  "botState": {
+    "failed": 0,
+    "closed": 0,
+    "snapshots": 8384,
+    "bytes": 2604540,
+    "stillJoined": 8
+  }
+}

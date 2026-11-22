@@ -157,7 +157,7 @@ export function captureSnapshot(
   const bullets: BulletView[] = [];
   const asteroids: AsteroidView[] = [];
   const pickups: PickupView[] = [];
-  for (const e of game.world) {
+  for (const e of game.world.liveEntities()) {
     if (isKind(e, 'ship')) {
       if (e.slot !== slot)
         ships.push({

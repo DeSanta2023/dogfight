@@ -10,6 +10,7 @@ import { createRng, type Rng } from './rng.ts';
 import { Ship, type InputSource } from './ship.ts';
 import { Vector2 } from './vector.ts';
 import { World } from './world.ts';
+import type { CollisionSystem } from './collision.ts';
 import { GameEvents } from './events.ts';
 import { assertNever, type EntityId } from './brand.ts';
 import { isKind } from './kinds.ts';
@@ -34,6 +35,8 @@ export interface GameOptions {
   players?: number;
   /** false = no explosion particles (the server has nobody to show them to). */
   cosmetics?: boolean;
+  /** Swap the collision system (Lab 07: createSpatialHash()). Default: the naive all-pairs one. */
+  collide?: CollisionSystem;
 }
 
 /** One participant: a slot number, the current ship (null while waiting to respawn) and counters. */
@@ -54,7 +57,7 @@ export interface Hud {
 }
 
 export class Game {
-  world = new World();
+  world: World;
   /**
    * Outbound notifications: "fired", "hit", "exploded", "collected"; each carries plain data (numbers and strings, never entities). Audio and the HUD subscribe;
    * the simulation imports neither, and nothing it does depends on who is listening.
@@ -67,6 +70,7 @@ export class Game {
   #config: Required<
     Pick<GameOptions, 'asteroids' | 'pickups' | 'hunterChance' | 'cosmetics'>
   >;
+  #byShip = new Map<EntityId, InputSource>();
   #asteroidTimer = 0;
   #pickupTimer: number;
 
@@ -82,7 +86,9 @@ export class Game {
     hunterChance = 0.4,
     players = 1,
     cosmetics = true,
+    collide,
   }: GameOptions = {}) {
+    this.world = new World(collide ? { collide } : {});
     this.#rng = createRng(seed);
     this.#config = { asteroids, pickups, hunterChance, cosmetics };
     this.#pickupTimer = this.#rng.range(6, 10);
@@ -152,7 +158,8 @@ export class Game {
 
   /** `inputs`: Map<slot, input source>. A slot without an entry simply coasts. */
   stepInputs(dt: number, inputs: ReadonlyMap<number, InputSource>): void {
-    const byShip = new Map<EntityId, InputSource>();
+    const byShip = this.#byShip; // reused: a new Map every tick is garbage 30 times a second
+    byShip.clear();
     for (const [slot, input] of inputs) {
       const ship = this.#players.get(slot)?.ship;
       if (ship) byShip.set(ship.id, input);
@@ -305,9 +312,7 @@ export class Game {
   }
 
   #count(kind: EntityKind): number {
-    let n = 0;
-    for (const _ of this.world.ofKind(kind)) n++; // eslint-disable-line no-unused-vars
-    return n;
+    return this.world.countOf(kind);
   }
 
   /** A random point at least `minDist` away from every asteroid (and the ship, if alive). */

@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { Connection } from '../src/net/connection.ts';
 import { RoomSession } from '../src/net/session.ts';

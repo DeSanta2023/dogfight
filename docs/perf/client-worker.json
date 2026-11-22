@@ -1,0 +1,169 @@
+{
+  "label": "worker",
+  "seconds": 30,
+  "bots": 8,
+  "query": "worker=1",
+  "environment": {
+    "cpus": 2,
+    "node": "v22.23.5",
+    "browser": "157.0.8103.78"
+  },
+  "throttle": 1,
+  "frame": {
+    "frames": 1800,
+    "fps": 60,
+    "p50": 16.7,
+    "p95": 16.7,
+    "p99": 16.8,
+    "max": 16.8,
+    "over16_7": 0,
+    "over33": 0,
+    "longTasks": 0,
+    "longTaskMaxMs": 0
+  },
+  "cpu": {
+    "idleMs": 19665,
+    "gcMs": 95,
+    "nativeMs": 8248,
+    "jsMs": 2029,
+    "busyPct": 34.5
+  },
+  "gc": {
+    "minor": {
+      "count": 34,
+      "totalMs": 65.7,
+      "maxMs": 5.19
+    },
+    "major": {
+      "count": 8,
+      "totalMs": 55.65,
+      "maxMs": 11.26
+    },
+    "eventNamesSeen": [
+      "V8.GC_TIME_TO_SAFEPOINT",
+      "V8.GC_HEAP_ENSURE_SWEEPING_COMPLETED",
+      "V8.GC_HEAP_EXTERNAL_PROLOGUE",
+      "MinorGC",
+      "V8.GC_HEAP_PROLOGUE",
+      "V8.GCScavenger",
+      "V8.GC_SCAVENGER",
+      "V8.GC_HEAP_PROLOGUE_SAFEPOINT",
+      "V8.GC_SCAVENGER_SCAVENGE",
+      "V8.GC_SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY",
+      "V8.GC_SCAVENGER_BACKGROUND_TRACED_HANDLES_COMPUTE_WEAKNESS_PARALLEL",
+      "V8.GC_SCAVENGER_SCAVENGE_COLLECT_OLD_TO_NEW_PAGES"
+    ]
+  },
+  "allocatedSampledKb": 40192,
+  "topAllocators": [
+    {
+      "fn": "#viewWorld index-CbmmMYp_.js:8489",
+      "kb": 4453,
+      "pct": 11.1
+    },
+    {
+      "fn": "interpolateInto index-CbmmMYp_.js:7044",
+      "kb": 4192,
+      "pct": 10.4
+    },
+    {
+      "fn": "(anonymous) index-CbmmMYp_.js:9811",
+      "kb": 4154,
+      "pct": 10.3
+    },
+    {
+      "fn": "drawEntity index-CbmmMYp_.js:7096",
+      "kb": 2995,
+      "pct": 7.5
+    },
+    {
+      "fn": "drawShip index-CbmmMYp_.js:7181",
+      "kb": 2566,
+      "pct": 6.4
+    },
+    {
+      "fn": "drawCallsigns index-CbmmMYp_.js:10151",
+      "kb": 2172,
+      "pct": 5.4
+    },
+    {
+      "fn": "drawNetgraph index-CbmmMYp_.js:7516",
+      "kb": 2053,
+      "pct": 5.1
+    },
+    {
+      "fn": "render index-CbmmMYp_.js:10166",
+      "kb": 1761,
+      "pct": 4.4
+    },
+    {
+      "fn": "blit index-CbmmMYp_.js:7168",
+      "kb": 1601,
+      "pct": 4
+    },
+    {
+      "fn": "draw index-CbmmMYp_.js:7205",
+      "kb": 1437,
+      "pct": 3.6
+    }
+  ],
+  "topCpu": [
+    {
+      "fn": "(program) :0",
+      "ms": 8248.5,
+      "pct": 79.5
+    },
+    {
+      "fn": "fillText :0",
+      "ms": 336.8,
+      "pct": 3.2
+    },
+    {
+      "fn": "requestAnimationFrame :0",
+      "ms": 139.4,
+      "pct": 1.3
+    },
+    {
+      "fn": "drawImage :0",
+      "ms": 131.5,
+      "pct": 1.3
+    },
+    {
+      "fn": "send :0",
+      "ms": 118.6,
+      "pct": 1.1
+    },
+    {
+      "fn": "save :0",
+      "ms": 95.9,
+      "pct": 0.9
+    },
+    {
+      "fn": "(garbage collector) :0",
+      "ms": 95.1,
+      "pct": 0.9
+    },
+    {
+      "fn": "postMessage :0",
+      "ms": 81.6,
+      "pct": 0.8
+    },
+    {
+      "fn": "(anonymous) index-CbmmMYp_.js:9811",
+      "ms": 59.5,
+      "pct": 0.6
+    },
+    {
+      "fn": "drawCallsigns index-CbmmMYp_.js:10151",
+      "ms": 56.1,
+      "pct": 0.5
+    }
+  ],
+  "botState": {
+    "failed": 0,
+    "closed": 0,
+    "snapshots": 8328,
+    "bytes": 2635159,
+    "stillJoined": 8
+  }
+}

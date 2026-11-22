@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { World } from '../src/world.ts';
 import { Asteroid, Bullet } from '../src/entities.ts';
