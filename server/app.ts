@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { createHandler } from './http.ts';
@@ -5,6 +7,7 @@ import { createMatchLog, type LogEvent, type MatchLog } from './log/matchlog.ts'
 import type { Config } from './config.ts';
 import type { Logger } from './logger.ts';
 import { toError } from './errors.ts';
+import { createMetrics } from './metrics.ts';
 import { RoomManager, type RoomSpec } from './rooms.ts';
 import { attachWebSocket } from './ws.ts';
 
@@ -24,6 +27,8 @@ export interface AppDeps {
 }
 
 export function createApp({ config, logger, presets }: AppDeps) {
+  let shuttingDown = false;
+  const version = readVersion();
   const rooms = new RoomManager({
     maxRooms: config.maxRooms,
     idleMs: config.roomIdleMs,
@@ -92,6 +97,9 @@ export function createApp({ config, logger, presets }: AppDeps) {
       config,
       rooms,
       logger,
+      version,
+      isReady: () => isReady(),
+      renderMetrics: () => metrics.render(),
       getStats: () => ({
         ws: live.ws?.stats,
         clients: live.ws?.clients.size,
@@ -110,8 +118,34 @@ export function createApp({ config, logger, presets }: AppDeps) {
     if (socket.writable)
       socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n');
   });
-  const ws = attachWebSocket(httpServer, { config, rooms, logger });
+  const ws = attachWebSocket(httpServer, {
+    config,
+    rooms,
+    logger,
+    isShuttingDown: () => shuttingDown,
+  });
   live.ws = ws;
+
+  /** Ready = "send me players": not shutting down, and room for one more connection. */
+  function isReady(): boolean {
+    return !shuttingDown && ws.clients.size < config.maxConnections;
+  }
+  const metrics = createMetrics(() => {
+    let players = 0;
+    for (const room of rooms.list()) players += room.players;
+    return {
+      config,
+      version,
+      rooms: rooms.size,
+      players,
+      connections: ws.clients.size,
+      ws: ws.stats,
+      steps: [...ws.matches.values()].map((m) => {
+        const stats = m.stats();
+        return { hz: stats.hz, total: m.stepStats().total };
+      }),
+    };
+  });
 
   return {
     httpServer,
@@ -130,14 +164,37 @@ export function createApp({ config, logger, presets }: AppDeps) {
     },
     /** Order matters: stop new connections, say goodbye to sockets, close rooms, flush logs. */
     async stop(): Promise<void> {
-      const closed = new Promise<void>((resolve) => httpServer.close(() => resolve()));
-      httpServer.closeIdleConnections?.();
+      // 1. /ready turns 503 and new WebSocket handshakes get 503: the load balancer sends nobody new.
+      //    The HTTP port stays open on purpose: /health must keep answering while the process lives.
+      shuttingDown = true;
+      metrics.stop();
+      // 2. Tell every player (close code 1001), give them a moment to go.
       await ws.shutdown(config.shutdownGraceMs);
+      // 3. Close the rooms and flush every log to disk.
       rooms.closeAll();
       await Promise.all([...pendingLogs]);
       await Promise.all([...logs.values()].map((log) => log.end()));
+      // 4. Only now stop listening.
+      const closed = new Promise<void>((resolve) => httpServer.close(() => resolve()));
+      httpServer.closeIdleConnections?.();
       httpServer.closeAllConnections?.(); // anything still hanging on (a slow download)
       await closed;
     },
   };
+}
+
+/** The version from the root package.json (the Docker image keeps it next to server/). */
+function readVersion(): string {
+  try {
+    const file = fileURLToPath(new URL('../package.json', import.meta.url));
+    const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'));
+    return typeof parsed === 'object' &&
+      parsed !== null &&
+      'version' in parsed &&
+      typeof parsed.version === 'string'
+      ? parsed.version
+      : 'unknown';
+  } catch {
+    return 'unknown';
+  }
 }

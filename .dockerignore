@@ -1,0 +1,23 @@
+# Everything here stays out of the build context: faster builds, no secrets, no stale files.
+**/node_modules
+**/dist
+**/dist-profile
+.git
+.github
+.env
+.env.*
+**/logs
+coverage
+**/coverage
+test-results
+playwright-report
+e2e
+perf
+notes
+docs
+README.md
+**/test
+**/scripts
+*.zip
+Dockerfile
+.dockerignore

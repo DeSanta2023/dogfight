@@ -1,0 +1,61 @@
+{
+  "label": "v1",
+  "seconds": 10,
+  "rows": [
+    {
+      "rooms": 1,
+      "players": 8,
+      "stepMeanMs": 0.476,
+      "stepP99Ms": 2.44,
+      "tickHzMin": 29.99,
+      "eventLoopUtilization": 0.023,
+      "eventLoopDelayP99Ms": 11.03,
+      "kbPerSecond": 88,
+      "rssMb": 106
+    },
+    {
+      "rooms": 5,
+      "players": 40,
+      "stepMeanMs": 0.265,
+      "stepP99Ms": 0.599,
+      "tickHzMin": 29.94,
+      "eventLoopUtilization": 0.058,
+      "eventLoopDelayP99Ms": 11.06,
+      "kbPerSecond": 330,
+      "rssMb": 120
+    },
+    {
+      "rooms": 10,
+      "players": 80,
+      "stepMeanMs": 0.249,
+      "stepP99Ms": 0.957,
+      "tickHzMin": 29.92,
+      "eventLoopUtilization": 0.091,
+      "eventLoopDelayP99Ms": 11.04,
+      "kbPerSecond": 675,
+      "rssMb": 122
+    },
+    {
+      "rooms": 25,
+      "players": 200,
+      "stepMeanMs": 0.214,
+      "stepP99Ms": 0.642,
+      "tickHzMin": 29.92,
+      "eventLoopUtilization": 0.206,
+      "eventLoopDelayP99Ms": 11.54,
+      "kbPerSecond": 1648,
+      "rssMb": 139
+    },
+    {
+      "rooms": 40,
+      "players": 320,
+      "stepMeanMs": 0.21,
+      "stepP99Ms": 1.012,
+      "tickHzMin": 29.9,
+      "eventLoopUtilization": 0.26,
+      "eventLoopDelayP99Ms": 15.12,
+      "kbPerSecond": 2597,
+      "rssMb": 141
+    }
+  ]
+}

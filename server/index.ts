@@ -40,6 +40,12 @@ async function shutdown(signal: NodeJS.Signals) {
   }
   stopping = true;
   logger.info('shutting down', { signal });
+  // Docker gives `docker stop` 10 s before SIGKILL. If a clean shutdown has not finished in 8 s,
+  // something is stuck: say so in the log and leave with a non-zero code instead of being killed.
+  setTimeout(() => {
+    logger.error('shutdown took too long: forcing exit');
+    process.exit(1);
+  }, 8000).unref();
   try {
     await app.stop();
     logger.info('bye');

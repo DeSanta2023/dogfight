@@ -34,7 +34,10 @@ const room = {
 };
 const rows = [];
 for (const count of counts) {
-  const server = await startServer({ MAX_CONNECTIONS: '300' }, [room]);
+  const server = await startServer(
+    { MAX_CONNECTIONS: '300', MAX_CONNECTIONS_PER_IP: '1000', MAX_PLAYERS: '1000' },
+    [room],
+  );
   const bots = await spawnBots({ url: server.wsUrl, room: 'load', count });
   await new Promise((r) => setTimeout(r, 3000)); // warm-up: JIT, first snapshots
   // The ring buffer in Match holds the last ~10 s of steps, so it is all measured time by now.

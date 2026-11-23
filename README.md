@@ -3,17 +3,109 @@
 A multiplayer-ready space dogfight built step by step in a JavaScript course (vanilla JS, ES
 modules, Vite on the client, Node + `ws` on the server).
 
-[![CI](https://github.com/DeSanta2023/dogfight/actions/workflows/ci.yml/badge.svg)](https://github.com/DeSanta2023/dogfight/actions/workflows/ci.yml)
+![One player and eight bots in one room](docs/gameplay.gif)
 
-| Lab | Topic                                     | Tag      | Where to look                                                                         |
-| --- | ----------------------------------------- | -------- | ------------------------------------------------------------------------------------- |
-| 01  | Event loop, fixed-timestep game loop      | `lab-01` | [Lab 01](#lab-01--the-game-loop)                                                      |
-| 02  | Objects, prototypes, `this`, composition  | `lab-02` | [Lab 02](#lab-02--the-entity-model)                                                   |
-| 03  | Promises, async/await, loading, lobby     | `lab-03` | [Lab 03](#lab-03--asynchronous-javascript)                                            |
-| 04  | Node.js: EventEmitter, streams, WebSocket | `lab-04` | [Lab 04](#lab-04--nodejs-eventemitter-streams-websockets)                             |
-| 05  | Authoritative server, prediction, binary  | `lab-05` | [Lab 05](#lab-05--the-server-runs-the-game-prediction-reconciliation-binary-protocol) |
-| 06  | TypeScript for protocol and simulation    | `lab-06` | [Lab 06](#lab-06--typescript-for-the-protocol-and-the-simulation)                     |
-| 07  | V8, memory, tests, CI                     | `lab-07` | [Lab 07](#lab-07--v8-memory-and-tests)                                                |
+**Play:** <!-- TODO after the first deploy: replace with your address, https only -->
+`https://YOUR-APP.onrender.com` · **Video (3–5 min):** <!-- TODO --> `https://YOUR-VIDEO-LINK` · **Release:** [`v1.0.0`](https://github.com/DeSanta2023/dogfight/releases)
+
+[![CI](https://github.com/DeSanta2023/dogfight/actions/workflows/ci.yml/badge.svg)](https://github.com/DeSanta2023/dogfight/actions/workflows/ci.yml)
+[![Release](https://github.com/DeSanta2023/dogfight/actions/workflows/release.yml/badge.svg)](https://github.com/DeSanta2023/dogfight/actions/workflows/release.yml)
+
+## How to play
+
+Open the address, type a callsign, pick a room (**Melee** holds 16, **Duel** 2) and join; friends join the same room from their own network. On a phone, "Add to Home Screen" installs it and on-screen buttons appear.
+
+| Key               | Action                      |
+| ----------------- | --------------------------- |
+| `←` `→` / `A` `D` | turn                        |
+| `↑` / `W`         | thrust                      |
+| `Space`           | fire                        |
+| `Enter`           | chat · `Esc` back to lobby  |
+| `M` / `G`         | mute / netgraph (rtt, loss) |
+
+Shoot rocks and ships, pick up shields, avoid dying. Score is on the top right.
+
+## How it works
+
+```mermaid
+flowchart LR
+  A["Browser A<br/>predicts its own ship,<br/>interpolates the others"] -- "wss: input, 30/s, 15 bytes" --> P
+  B["Browser B"] -- "wss" --> P
+  P["Platform proxy<br/>(TLS, https only)"] -- "ws, X-Forwarded-For" --> S
+  subgraph S["ONE Node process"]
+    direction TB
+    H["HTTP: static files, /health, /ready, /metrics"]
+    W["WebSocket: Origin check, limits, rate limit"]
+    M["Room → Match: the authoritative Game, 30 steps/s"]
+  end
+  S -- "snapshots, 30/s, ~170 bytes" --> A
+  S -- "snapshots" --> B
+  S -. "JSON logs (pino)" .-> L[("stdout → platform logs")]
+```
+
+The server owns the game (`shared/` is the same simulation code in the browser and in Node); the browser predicts, the server corrects (Labs 5–6). Binary frames, TypeScript, Zod at every border.
+
+## Numbers (details in the lab sections below)
+
+| What (Lab 5, binary protocol)                    | binary |         JSON |
+| ------------------------------------------------ | -----: | -----------: |
+| snapshot of a Duel room, bytes                   |    172 |         1379 |
+| download per player at 30/s, bytes/s             |  5 168 |       41 362 |
+| input packet (newest + 7 redundant), bytes       |     15 |           66 |
+| press → ship moves with prediction on, `lag=100` |  29 ms | 162 ms (off) |
+
+| What (Lab 7, 2 vCPU container)               | before | after |
+| -------------------------------------------- | -----: | ----: |
+| simulation step, 16 players, mean ms         |  0.037 | 0.019 |
+| garbage collections per 1000 steps           |    6.5 |  4.25 |
+| minor GCs in 30 s with 8 bots in the browser |     46 |    28 |
+| p99 server step, 128 players in one room, ms |   13.4 |  16.0 |
+
+## How many players does one process hold?
+
+Measured with the server's own `/metrics` (`perf/scripts/rooms-load.mjs`): rooms of 8 players, 8 bots in each, 2 vCPUs shared by the server **and** the bots, 10 s per row.
+
+| rooms × 8 | players | worst step p99 | event loop busy | out, KB/s |    RSS |
+| --------: | ------: | -------------: | --------------: | --------: | -----: |
+|         1 |       8 |         2.4 ms |             2 % |        88 | 106 MB |
+|        10 |      80 |         1.0 ms |             9 % |       675 | 122 MB |
+|        25 |     200 |         0.6 ms |            21 % |     1 648 | 139 MB |
+|        40 |     320 |         1.0 ms |            26 % |     2 597 | 141 MB |
+
+Rooms do not slow each other down (the step of one room is ~0.2 ms; what grows is the share of the event loop), so the limit of one process is **the event loop at roughly 1000–1200 players** (extrapolated linearly from 26 % at 320; not measured) and **bandwidth** (~8 KB/s per player: 1000 players ≈ 8 MB/s). One _room_ is limited differently: its snapshots are built per player, so a step grows with players × entities and passes 33 ms (p99) at ~250 players in a single room (Lab 7). The default `MAX_PLAYERS=200` stays far inside both limits and also inside what a small free-tier host gives (it has a fraction of these CPUs: expect less there).
+
+**Why all the players of a room sit in one process:** the room's `World` lives in that process's memory and is stepped by one timer; every input must reach it and every snapshot is built from it. Putting two players of the same room into two processes would need shared state or a message bus between them at 30 Hz, which costs more latency than it saves. Scaling out means _more rooms on more processes_ (route a room id to a process), never one room on many.
+
+## Limits that remain, and why
+
+- **One process, no persistence.** A restart ends all matches (players are sent back to the lobby); match logs are on the container's disk and disappear with it. Fine for a course game; a real one would ship logs to a store.
+- **No accounts.** A callsign is unique only inside a room. The limits (20 sockets per IP, 200 players, rate limits) are the only abuse protection.
+- **Per-IP limit needs the right address.** Behind a proxy it is read from the last `X-Forwarded-For` entry (`TRUST_PROXY=1`); with the wrong setting everyone looks like the proxy.
+- **A free host sleeps and has little CPU.** The first request after idle may take ~1 minute; the numbers above are for 2 vCPUs, not for a free plan.
+- **Touch controls are basic** (four buttons); no gamepad, no landscape lock on iOS.
+- **No cheating protection beyond authority:** the server is the referee (inputs only, never positions), but there is no anti-bot detection.
+- **Service worker** makes the page installable and open offline; the _game_ needs the network.
+- **Real two-network round trip** (table below) is measured by hand, once.
+
+## Round trip between two real players (not from one network)
+
+<!-- TODO: play from two different networks, read rtt in the netgraph (key G), fill in -->
+
+| Player | Network            | Distance to the server | rtt (netgraph) min / typical / max |
+| ------ | ------------------ | ---------------------- | ---------------------------------- |
+| A      | home Wi-Fi, …      | …                      | … / … / … ms                       |
+| B      | phone, mobile data | …                      | … / … / … ms                       |
+
+| Lab | Topic                                     | Tag                | Where to look                                                                         |
+| --- | ----------------------------------------- | ------------------ | ------------------------------------------------------------------------------------- |
+| 01  | Event loop, fixed-timestep game loop      | `lab-01`           | [Lab 01](#lab-01--the-game-loop)                                                      |
+| 02  | Objects, prototypes, `this`, composition  | `lab-02`           | [Lab 02](#lab-02--the-entity-model)                                                   |
+| 03  | Promises, async/await, loading, lobby     | `lab-03`           | [Lab 03](#lab-03--asynchronous-javascript)                                            |
+| 04  | Node.js: EventEmitter, streams, WebSocket | `lab-04`           | [Lab 04](#lab-04--nodejs-eventemitter-streams-websockets)                             |
+| 05  | Authoritative server, prediction, binary  | `lab-05`           | [Lab 05](#lab-05--the-server-runs-the-game-prediction-reconciliation-binary-protocol) |
+| 06  | TypeScript for protocol and simulation    | `lab-06`           | [Lab 06](#lab-06--typescript-for-the-protocol-and-the-simulation)                     |
+| 07  | V8, memory, tests, CI                     | `lab-07`           | [Lab 07](#lab-07--v8-memory-and-tests)                                                |
+| 08  | Docker, metrics, a live address, PWA      | `lab-08`, `v1.0.0` | [Lab 08](#lab-08--ship-it-docker-metrics-and-a-live-address)                          |
 
 ## Run
 
@@ -94,6 +186,113 @@ docs/                       rss.svg + rss.csv (Lab 04 graph), two-windows.gif (L
 perf/                       Lab 07: bots, client profiler, load test, sim and collision benchmarks
 e2e/                        Lab 07: Playwright, two browsers in one room
 ```
+
+## Lab 08 — Ship it: Docker, metrics and a live address
+
+```powershell
+npm test                                  # 121 server tests incl. ops.test.ts and chaos.test.ts
+npm run test:e2e                          # + chaos.spec.ts (server killed), pwa.spec.ts (install, offline, touch)
+docker build -t dogfight --build-arg GIT_SHA=local .
+docker run --rm -p 3000:3000 dogfight     # http://localhost:3000
+docker stop <container>                   # SIGTERM: exits 0 in well under 10 s
+```
+
+### 1. How the process behaves
+
+| Situation                                | What happens                                                                                                                                                                                                | Test                                                                        |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `SIGTERM` / `SIGINT`                     | `/ready` → 503 and new handshakes → 503 · every player gets close code **1001** · match logs are flushed · the HTTP port closes last · exit **0**. A watchdog forces exit 1 after 8 s (Docker kills at 10). | `ops.test.ts`, `process.test.ts`, `.github/scripts/graceful-stop-check.mjs` |
+| second signal                            | exit 1 immediately                                                                                                                                                                                          | `process.test.ts`                                                           |
+| uncaught exception / unhandled rejection | logged with the stack, process exits 1 (supervisor restarts it). **No empty handler** that would keep a process in an unknown state.                                                                        | `index.ts`                                                                  |
+| `GET /health`                            | 200 while the process answers, **also during shutdown**; shows `version`, `gitSha`, uptime                                                                                                                  | `ops.test.ts`                                                               |
+| `GET /ready`                             | 200 while it can take players; **503** while shutting down or at `MAX_CONNECTIONS`                                                                                                                          | `ops.test.ts`                                                               |
+
+Two endpoints because they answer different questions: the orchestrator _restarts_ on `/health` failing, the load balancer _stops routing_ on `/ready` failing. Restarting a server because it is full or leaving would be wrong.
+
+### 2. Config (Zod, fails at start-up with the variable's name)
+
+Only `config.ts` reads `process.env`. New in this lab:
+
+| Variable                       | Default              | Meaning                                                                                                                                                                      |
+| ------------------------------ | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ALLOWED_ORIGINS`              | _(empty)_            | `https://a.example, https://b.example`: pages allowed to open a WebSocket. Empty = only the page this server serves. A path, a trailing slash or a typo is a start-up error. |
+| `MAX_CONNECTIONS_PER_IP`       | 20                   | open sockets per client address                                                                                                                                              |
+| `MAX_PLAYERS`                  | 200                  | players in all rooms together (over it: `server_full`)                                                                                                                       |
+| `MAX_ROOMS`, `MAX_CONNECTIONS` | 50, 200              | rooms, sockets                                                                                                                                                               |
+| `TRUST_PROXY`                  | 0 (the image sets 1) | read the client address from `X-Forwarded-For` (last entry)                                                                                                                  |
+| `GIT_SHA`                      | `dev`                | build commit, shown by `/health` and `/metrics`                                                                                                                              |
+
+### 3. Origin check on the WebSocket handshake
+
+Browsers do not apply the same-origin policy to WebSockets: a page on `evil.example` can open `wss://our.game/ws` from a visitor's browser. The browser always sends `Origin` and the page cannot change it, so the handshake compares it with `ALLOWED_ORIGINS` (or with the `Host` when none is set) and answers **403** before any socket exists. No `Origin` = not a browser (bots, tests, curl) = allowed: the attack needs a browser, and the per-IP and rate limits cover the rest. Too many sockets from one address: **429** at the handshake. Tests: `ops.test.ts`.
+
+### 4. Logs: JSON lines through pino
+
+```json
+{
+  "level": "info",
+  "time": "2026-11-22T15:27:04.958Z",
+  "room": "melee",
+  "player": "a1b2c3d4",
+  "msg": "joined"
+}
+```
+
+`child({ room, player })` stamps the room and player ids on every line of that room or player; `redact` replaces any field called `password`, `token`, `secret`, `key`, `apiKey`, `authorization` or `cookie` (top level or one level down) with `[Redacted]`, and a test proves it. Output is synchronous to stdout, so the last line before `process.exit` is not lost.
+
+### 5. `/metrics` (Prometheus text format)
+
+```
+$ curl localhost:3000/metrics
+dogfight_players 8                     dogfight_step_ms_p99 2.44
+dogfight_rooms 1                       dogfight_tick_rate_hz 29.99
+dogfight_ws_messages_total 71230       dogfight_event_loop_utilization 0.02
+dogfight_bytes_sent_total 912340       process_resident_memory_bytes 111149056
+dogfight_bytes_sent_per_second 90112   dogfight_build_info{version="1.0.0",git_sha="…"} 1
+```
+
+Players, rooms, connections, messages (+ per second), bytes sent (+ per second), dropped snapshots, bad frames, closes by code, **step time** (mean / p99 / max of the slowest room; budget 33.3 ms), tick rate, **event-loop utilisation and delay**, heap and RSS. Counters end in `_total`; the `_per_second` gauges are there for people with `curl` and no Prometheus.
+
+### 6. Chaos
+
+| Failure                                                 | Expected                                                                                                                                                                                                    | Where               |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| client vanishes mid-match (socket dies, no close frame) | the others see the roster shrink, the match goes on                                                                                                                                                         | `chaos.test.ts`     |
+| frozen tab (answers no pings)                           | dropped by the heartbeat                                                                                                                                                                                    | `chaos.test.ts`     |
+| client sends ~1000 broken frames/s                      | closed on the **first** broken frame (<100 sent); a match in another room keeps 30 Hz and a p99 step far under 33 ms                                                                                        | `chaos.test.ts`     |
+| valid inputs faster than the limit                      | closed with 1008                                                                                                                                                                                            | `chaos.test.ts`     |
+| garbage first frame                                     | that socket closes, the next client joins fine                                                                                                                                                              | `chaos.test.ts`     |
+| **server killed (SIGKILL) mid-match**                   | the page retries for 10 s, then returns to the lobby **by itself** with the notice "Lost connection to the server"; if the server comes back within 10 s the player re-joins and the netcode restarts clean | `e2e/chaos.spec.ts` |
+
+### 7. The image
+
+Two stages (`Dockerfile`): stage 1 installs everything and builds the client with Vite; stage 2 installs **only** the server's production dependencies (`npm ci --omit=dev -w server`: `ws`, `zod`, `pino`), copies `server/`, `shared/src/` and the built `client/dist`, removes npm, and runs as the unprivileged `node` user. `CMD ["node", "server/index.ts"]`: not `npm start`, which would swallow `SIGTERM` (npm does not pass it on, Docker waits 10 s and `SIGKILL`s: no goodbye, logs lost). `HEALTHCHECK` calls `/health` with Node (Alpine has no curl). `GIT_SHA` comes in as a build argument. `.dockerignore` keeps tests, docs, `.git` and `node_modules` out of the context.
+
+| Check                                                                                                                                                                                                                    | Where                                                                                         |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| size < 200 MB, user is not root, command is `node`, a HEALTHCHECK exists, no vite/vitest/playwright/typescript/eslint inside, `/health` shows the build's git SHA, `docker stop` → players get 1001, exit code 0, < 10 s | `.github/scripts/docker-smoke.sh`, run by the release workflow **before** the image is pushed |
+
+What I measured without Docker (the build sandbox could not pull base images): the runtime layout (`npm ci --omit=dev -w server` + `server/` + `shared/src` + `client/dist`) is **12 MB of `node_modules` + ~1 MB of code**, starts with `node server/index.ts`, answers `/health` with the build SHA, and exits 0 in ~20 ms after `SIGTERM` with a connected player getting 1001. On top of `node:22-alpine` (~160 MB) minus npm that is ~150–160 MB: **expected under 200 MB; the number to put here is yours from `docker images dogfight`**.
+
+### 8. Release and deploy
+
+Push a tag `v*` → `.github/workflows/release.yml`: **test** (types + tests) → **image** (build, smoke test above, push `ghcr.io/desanta2023/dogfight:v1.0.0` and `:latest`) → **deploy** (Render deploy hook or Fly.io, whichever secret exists) → waits until the live `/health` shows **this commit's SHA**. The public page only uses `wss://` (the client builds the URL from `location.protocol`).
+
+Set up once (Render, no card needed):
+
+1. GitHub → your profile → Packages → `dogfight` → Package settings → **Change visibility → Public** (after the first tag), so the host can pull without a login.
+2. render.com → New → Web Service → **Existing image** → `ghcr.io/desanta2023/dogfight:latest`; Health check path `/ready`; environment `ALLOWED_ORIGINS=https://YOUR-APP.onrender.com`, `TRUST_PROXY=1`.
+3. In the service: Settings → **Deploy Hook** → copy the URL → GitHub repo → Settings → Secrets and variables → Actions → secret `RENDER_DEPLOY_HOOK_URL`; variable `PUBLIC_URL=https://YOUR-APP.onrender.com`.
+4. Settings → Environments → create `production`.
+5. `git tag v1.0.0 && git push origin v1.0.0`. If the hook ignores the `imgURL` parameter, press _Manual Deploy → Deploy specific image_ once; the live-SHA check will still tell you when the right build is up. `fly.toml` is there for Fly.io (`FLY_API_TOKEN` secret instead).
+
+### 9. PWA
+
+`manifest.webmanifest` (name, `start_url`, `display: standalone`, 192/512 and maskable icons), `sw.js` (the page: network first, cached copy offline; hashed `/assets/*`: cache first; `/ws`, `/api`, `/health`, `/metrics`: never cached) and touch buttons that press the same keys as the keyboard. The server sends `sw.js`, `index.html` and the manifest with `no-cache` and `/assets/*` as `immutable`, so an update is noticed. `e2e/pwa.spec.ts` checks the manifest and icons, that the worker installs and the page opens with the network off, and that the touch "thrust" button moves the ship.
+
+### 10. Defence notes
+
+See `notes/reflection-prep-lab08.md` (local, not in git).
 
 ## Lab 07 — V8, memory and tests
 
@@ -1201,9 +1400,19 @@ through a wall).
 
 ## Lab status
 
+**Lab 08**
+
+- [x] SIGTERM: 1001 to every player, logs flushed, exit 0, watchdog at 8 s; `/health` and `/ready` are different questions
+- [x] pino JSON logs with room and player ids, secrets redacted; `/metrics` (players, rooms, messages, bytes/s, step time, loop utilisation, memory)
+- [x] Zod config: `ALLOWED_ORIGINS`, per-IP limit, rooms/players limits; Origin checked in the WebSocket handshake
+- [x] Chaos: vanishing client, ~1000 bad frames/s, killed server (the player returns to the lobby)
+- [x] Two-stage Dockerfile, non-root, `node file`, HEALTHCHECK, smoke test in CI; release workflow on `v*` tags, GHCR, deploy, live SHA check
+- [x] PWA (manifest, service worker, touch buttons); README as the project page
+- [ ] **Yours:** deploy, the live address and video in the top of this README, the real two-network RTT table, tags `lab-08` and `v1.0.0`, `docker images` size
+
 **Lab 07**
 
-- [x] Vitest in shared / client / server (263 tests), shared coverage 94 % (gate 85 %)
+- [x] Vitest in shared / client / server (282 tests), shared coverage 94 % (gate 85 %)
 - [x] 11 fast-check properties; fake-timer tests for the loop, the ticker and the rate limit
 - [x] Playwright: two browsers in one room (movement + chat); GitHub Actions + CI badge
 - [x] 8 bots (same input as a human), frame p50/p95/p99, GC pauses, allocators, flame charts before/after

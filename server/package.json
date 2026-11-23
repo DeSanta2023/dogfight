@@ -1,7 +1,7 @@
 {
   "name": "@dogfight/server",
   "private": true,
-  "version": "0.5.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "node --watch --env-file=.env.example index.ts",
@@ -14,8 +14,9 @@
     "tick-demo": "node scripts/tick-demo.mjs"
   },
   "dependencies": {
-    "ws": "^8.18.0",
     "@dogfight/shared": "*",
+    "pino": "^10.4.0",
+    "ws": "^8.18.0",
     "zod": "^4.6.7"
   }
 }

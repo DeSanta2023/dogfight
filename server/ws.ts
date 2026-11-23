@@ -4,6 +4,7 @@ import type { Server as HttpServer } from 'node:http';
 import { CLOSE, LIMITS, encode, parseClientMessage } from './protocol.ts';
 import type { ServerMessageInput, WireFormat } from '@dogfight/shared/protocol.ts';
 import { Room, RoomError, RoomManager } from './rooms.ts';
+import { clientIp, isOriginAllowed } from './origin.ts';
 import { TokenBucket } from './ratelimit.ts';
 import { Match } from './match.ts';
 import type { Config } from './config.ts';
@@ -96,12 +97,16 @@ export interface WsStats {
   snapshots: number;
   snapshotBytes: number;
   badGameFrames: number;
+  /** Handshakes refused before a socket existed: wrong Origin, too many from one address. */
+  rejected: { origin: number; perIp: number };
 }
 
 export interface WsDeps {
   config: Config;
   rooms: RoomManager;
   logger: Logger;
+  /** True once shutdown has begun: the handshake then answers 503 and nobody new gets in. */
+  isShuttingDown?: () => boolean;
 }
 
 /** An Error is what we expect in a catch; anything else (a thrown string) is still logged. */
@@ -110,12 +115,30 @@ const describe = (error: unknown): string =>
 
 export function attachWebSocket(
   httpServer: HttpServer,
-  { config, rooms, logger }: WsDeps,
+  { config, rooms, logger, isShuttingDown = () => false }: WsDeps,
 ) {
+  const perIp = new Map<string, number>(); // address -> open connections
   const wss = new WebSocketServer({
     server: httpServer,
     path: '/ws',
     maxPayload: config.maxMessageBytes, // ws closes with 1009 by itself, before we even parse
+    // The HANDSHAKE is the cheapest place to say no: no socket object, no timers, no memory.
+    verifyClient: ({ req }, done) => {
+      const ip = clientIp(req, config.trustProxy);
+      const origin = req.headers.origin;
+      if (isShuttingDown()) return done(false, 503, 'Shutting down');
+      if (!isOriginAllowed(origin, req.headers.host, config.allowedOrigins)) {
+        stats.rejected.origin++;
+        logger.warn('websocket origin rejected', { origin, ip });
+        return done(false, 403, 'Origin not allowed');
+      }
+      if ((perIp.get(ip) ?? 0) >= config.maxConnectionsPerIp) {
+        stats.rejected.perIp++;
+        logger.warn('too many connections from one address', { ip });
+        return done(false, 429, 'Too many connections');
+      }
+      done(true);
+    },
   });
   const clients = new Set<WebSocket>(); // every open connection
   const conns = new Map<WebSocket, Conn>();
@@ -130,6 +153,7 @@ export function attachWebSocket(
     snapshots: 0,
     snapshotBytes: 0,
     badGameFrames: 0,
+    rejected: { origin: 0, perIp: 0 },
   };
   const send = (ws: WebSocket, message: ServerMessageInput, droppable = false) =>
     safeSend(ws, encode(message), {
@@ -194,7 +218,9 @@ export function attachWebSocket(
 
   wss.on('error', (error) => logger.error('wss error', { error: error.message }));
 
-  wss.on('connection', (ws) => {
+  wss.on('connection', (ws, req) => {
+    const ip = clientIp(req, config.trustProxy);
+    perIp.set(ip, (perIp.get(ip) ?? 0) + 1);
     // First listener, before anything can go wrong: an 'error' event without a listener is
     // thrown by EventEmitter and would take the whole server down (README: error-crash demo).
     ws.on('error', (error) => logger.warn('socket error', { error: error.message }));
@@ -314,6 +340,10 @@ export function attachWebSocket(
                 code: 'already_joined',
                 message: 'Leave first',
               });
+            let playing = 0;
+            for (const c of conns.values()) if (c.room) playing++;
+            if (playing >= config.maxPlayers)
+              throw new RoomError('server_full', 'The server is full, try again later');
             const room = rooms.getOrCreate(message.room);
             room.join({ id: conn.id, name: message.name });
             conn.room = room;
@@ -365,6 +395,9 @@ export function attachWebSocket(
 
     ws.on('close', () => {
       clearTimeout(joinTimer);
+      const left = (perIp.get(ip) ?? 1) - 1;
+      if (left <= 0) perIp.delete(ip);
+      else perIp.set(ip, left);
       clients.delete(ws);
       leaveRoom();
       conns.delete(ws);

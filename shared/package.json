@@ -1,7 +1,7 @@
 {
   "name": "@dogfight/shared",
   "private": true,
-  "version": "0.5.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "The simulation: the SAME files run in the browser (prediction) and in Node (authority). No DOM, no Node modules.",
   "exports": {

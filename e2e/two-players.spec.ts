@@ -3,19 +3,6 @@
 //   2. a chat message of the first one arrives at the second one.
 import { expect, test, type Browser, type Page } from '@playwright/test';
 
-/** What a page knows about the game, through the `?debug=1` hook (window.dogfight). */
-interface DogfightHook {
-  session: { slot: number } | null;
-  net: {
-    latest: { snap: { ships: { slot: number; x: number; y: number }[] } } | null;
-  } | null;
-}
-declare global {
-  interface Window {
-    dogfight: DogfightHook;
-  }
-}
-
 async function join(browser: Browser, name: string): Promise<Page> {
   const context = await browser.newContext(); // own cookies, storage and socket: a different person
   const page = await context.newPage();

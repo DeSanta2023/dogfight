@@ -17,7 +17,8 @@ export type RoomErrorCode =
   | 'room_exists'
   | 'too_many_rooms'
   | 'already_joined'
-  | 'not_in_room';
+  | 'not_in_room'
+  | 'server_full';
 
 export class RoomError extends Error {
   override name = 'RoomError';

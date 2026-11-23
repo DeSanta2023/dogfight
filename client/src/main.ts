@@ -20,6 +20,7 @@ import { Conditioner } from './net/conditioner.ts';
 import { bitsFromInput } from '@dogfight/shared/input.ts';
 import { physicsHooks } from '@dogfight/shared/ship.ts';
 import { Lobby } from './lobby.ts';
+import { mountTouchControls } from './ui/touch-controls.ts';
 import { mountLobbyView } from './ui/lobby-view.ts';
 import { mountRetryView } from './ui/retry-view.ts';
 import { mountRoomView } from './ui/room-view.ts';
@@ -355,6 +356,9 @@ function wsUrl(): string {
   return `${scheme}://${location.host}/ws`;
 }
 
+const RECONNECT_GIVE_UP_MS = 10_000;
+let giveUpTimer: ReturnType<typeof setTimeout> | undefined;
+
 function enterRoom(chosen: RoomInfo, name: string): void {
   callsign = name;
   unmount();
@@ -371,8 +375,12 @@ function enterRoom(chosen: RoomInfo, name: string): void {
   current.on('joined', (detail) => {
     if (session !== current) return;
     if (phase === 'playing') {
-      // A re-join after a reconnect: the game keeps running, unless the server gave us another ship.
-      if (net && detail.slot !== net.slot) startNetGame(detail.slot);
+      // A re-join after a reconnect. The connection was broken, so what we predicted and what the
+      // server did may have drifted apart, and a RESTARTED server counts its ticks from zero:
+      // start the netcode again (fresh snapshots, fresh prediction) instead of trusting old state.
+      clearTimeout(giveUpTimer);
+      giveUpTimer = undefined;
+      startNetGame(detail.slot);
       return;
     }
     unmount();
@@ -392,6 +400,19 @@ function enterRoom(chosen: RoomInfo, name: string): void {
     if (session !== current) return;
     abandonRoom(`Disconnected: ${detail.reason}`);
   });
+  // The connection dropped in the middle of a match (server killed, Wi-Fi gone). The session keeps
+  // retrying; if it cannot get back within RECONNECT_GIVE_UP_MS, the player goes back to the lobby
+  // by themselves, with a notice, instead of staring at a frozen game.
+  current.on('status', (detail) => {
+    if (session !== current || phase !== 'playing') return;
+    if (detail.state === 'reconnecting' && giveUpTimer === undefined) {
+      giveUpTimer = setTimeout(() => {
+        giveUpTimer = undefined;
+        if (session === current)
+          abandonRoom('Lost connection to the server. Back in the lobby.');
+      }, RECONNECT_GIVE_UP_MS);
+    }
+  });
   // While the first connect is retried, tell the player (the panel above) what is going on.
   current.on('status', (detail) => {
     if (session !== current || phase !== 'joining' || detail.state !== 'reconnecting')
@@ -409,6 +430,8 @@ function enterRoom(chosen: RoomInfo, name: string): void {
 
 /** Leave the room (if any), close the socket, and show the lobby again. */
 function abandonRoom(notice = ''): void {
+  clearTimeout(giveUpTimer);
+  giveUpTimer = undefined;
   const old = session;
   session = null;
   old?.leave();
@@ -579,3 +602,17 @@ if (import.meta.env.DEV || params.has('debug'))
       },
     },
   });
+
+// ---- Lab 08: phone and install ----------------------------------------------------------------
+// Touch buttons (only on touch screens) press the same keys as the keyboard.
+mountTouchControls(document.body, window, params.has('touch'));
+
+// The service worker makes the game installable (see public/sw.js). Not in dev: Vite's hot reload
+// and a cache that serves old files do not mix.
+if ('serviceWorker' in navigator && !import.meta.env.DEV && !params.has('nosw')) {
+  addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      /* no service worker (private mode, http on a LAN address): the game works without it */
+    });
+  });
+}

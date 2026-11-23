@@ -39,6 +39,28 @@ const flag = z
   .enum(['1', 'true', '0', 'false'], { error: 'is not 0/1/true/false' })
   .transform((s) => s === '1' || s === 'true');
 
+/** "https://a.example, https://b.example" -> ['https://a.example', 'https://b.example'] (empty = none). */
+const originList = z
+  .string()
+  .transform((s) =>
+    s
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean),
+  )
+  .pipe(
+    z.array(
+      z.string().refine((o) => {
+        try {
+          const u = new URL(o);
+          return (u.protocol === 'http:' || u.protocol === 'https:') && u.origin === o;
+        } catch {
+          return false;
+        }
+      }, 'must be an origin like https://game.example (scheme + host, no path, no trailing slash)'),
+    ),
+  );
+
 const STATIC = fileURLToPath(new URL('../client/dist', import.meta.url));
 
 /** env name -> [config key, schema]. One table, so the name and the type cannot drift apart. */
@@ -63,6 +85,16 @@ const envSchema = z.object({
   ROOM_IDLE_MS: withDefault('60000', int(10, 86_400_000)),
   ENABLE_SLOW_ROUTE: withDefault('1', flag),
   SHUTDOWN_GRACE_MS: withDefault('3000', int(0, 60_000)),
+  // Lab 08: the public internet.
+  /** Pages that may open a WebSocket. Empty = only the page this server itself serves (same host). */
+  ALLOWED_ORIGINS: withDefault('', originList),
+  MAX_CONNECTIONS_PER_IP: withDefault('20', int(1, 100_000)),
+  /** All players in all rooms together: one Node process only has so much CPU. */
+  MAX_PLAYERS: withDefault('200', int(1, 100_000)),
+  /** Behind a reverse proxy (Render, Fly, nginx) the client's address is in X-Forwarded-For. */
+  TRUST_PROXY: withDefault('0', flag),
+  /** The commit this build was made from; the Docker build passes it in. Shown by /health. */
+  GIT_SHA: withDefault('dev', text),
 });
 
 export interface Config {
@@ -85,6 +117,11 @@ export interface Config {
   readonly roomIdleMs: number;
   readonly enableSlowRoute: boolean;
   readonly shutdownGraceMs: number;
+  readonly allowedOrigins: readonly string[];
+  readonly maxConnectionsPerIp: number;
+  readonly maxPlayers: number;
+  readonly trustProxy: boolean;
+  readonly gitSha: string;
 }
 
 /** Anything with string values: process.env, or a plain object in a test. */
@@ -119,5 +156,10 @@ export function loadConfig(env: Env = process.env): Readonly<Config> {
     roomIdleMs: e.ROOM_IDLE_MS,
     enableSlowRoute: e.ENABLE_SLOW_ROUTE,
     shutdownGraceMs: e.SHUTDOWN_GRACE_MS,
+    allowedOrigins: Object.freeze(e.ALLOWED_ORIGINS),
+    maxConnectionsPerIp: e.MAX_CONNECTIONS_PER_IP,
+    maxPlayers: e.MAX_PLAYERS,
+    trustProxy: e.TRUST_PROXY,
+    gitSha: e.GIT_SHA,
   });
 }

@@ -21,6 +21,8 @@ export const MIME: Readonly<Record<string, string>> = {
   '.json': 'application/json; charset=utf-8',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
+  '.woff2': 'font/woff2',
   '.wav': 'audio/wav',
   '.ico': 'image/x-icon',
   '.map': 'application/json',
@@ -149,14 +151,35 @@ export function blockFor(ms: number): void {
   while (performance.now() < end);
 }
 
+/** Hashed build files never change (a new build has new names); the entry points always revalidate. */
+export function cacheControl(pathname: string): string {
+  if (pathname.startsWith('/assets/')) return 'public, max-age=31536000, immutable';
+  if (pathname === '/' || /\.(html|webmanifest)$|\/sw\.js$/.test(pathname))
+    return 'no-cache';
+  return 'public, max-age=3600';
+}
+
 export interface HandlerDeps {
   config: Config;
   rooms: RoomManager;
   logger: Logger;
   getStats: () => Record<string, unknown>;
+  /** /ready: may we send players here? */
+  isReady?: () => boolean;
+  /** /metrics: the Prometheus text. */
+  renderMetrics?: () => string;
+  version?: string;
 }
 
-export function createHandler({ config, rooms, logger, getStats }: HandlerDeps) {
+export function createHandler({
+  config,
+  rooms,
+  logger,
+  getStats,
+  isReady = () => true,
+  renderMetrics,
+  version = 'dev',
+}: HandlerDeps) {
   const staticRoot = resolve(config.staticDir);
 
   async function serveStatic(
@@ -200,7 +223,9 @@ export function createHandler({ config, rooms, logger, getStats }: HandlerDeps) 
     res.writeHead(200, {
       'Content-Type': type,
       'Content-Length': info.size,
-      'Cache-Control': type.startsWith('text/html') ? 'no-cache' : 'public, max-age=3600',
+      // Never let the HTTP cache keep the page, the service worker or the manifest: they are what
+      // tells the browser that a new version exists. Hashed files in /assets/ never change.
+      'Cache-Control': cacheControl(pathname),
       'X-Content-Type-Options': 'nosniff',
     });
     if (req.method === 'HEAD') {
@@ -224,10 +249,34 @@ export function createHandler({ config, rooms, logger, getStats }: HandlerDeps) 
         });
     };
 
+    // Two different questions, two endpoints (Kubernetes calls them liveness and readiness):
+    //   /health  "is the PROCESS alive?"        200 as long as the event loop answers.
+    //   /ready   "should I send you PLAYERS?"   503 while shutting down or when full.
+    // A load balancer stops routing on /ready; the orchestrator restarts the process on /health.
+    if (pathname === '/ready') {
+      allow('GET', 'HEAD');
+      const ready = isReady();
+      return json(res, ready ? 200 : 503, { ready });
+    }
+
+    if (pathname === '/metrics') {
+      allow('GET', 'HEAD');
+      const body = renderMetrics?.() ?? '';
+      res.writeHead(200, {
+        'Content-Type': 'text/plain; version=0.0.4; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'Content-Length': Buffer.byteLength(body),
+      });
+      res.end(req.method === 'HEAD' ? undefined : body);
+      return;
+    }
+
     if (pathname === '/health') {
       allow('GET', 'HEAD');
       return json(res, 200, {
         status: 'ok',
+        version,
+        gitSha: config.gitSha,
         uptimeSec: Math.round(process.uptime()),
         rooms: rooms.size,
         rssMb: Math.round(process.memoryUsage().rss / 1048576),
