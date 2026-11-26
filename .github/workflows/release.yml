@@ -49,7 +49,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Smoke test, size, non-root, health, docker stop
-        run: .github/scripts/docker-smoke.sh "$IMAGE_LC:candidate" "${{ github.sha }}"
+        run: bash .github/scripts/docker-smoke.sh "$IMAGE_LC:candidate" "${{ github.sha }}"
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
